@@ -1,0 +1,87 @@
+unit Unit1;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  System.IOUtils, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.Grids, System.Types;
+
+type
+  TForm1 = class(TForm)
+    FolderDialog: TFileOpenDialog;
+    EditFolderPath: TEdit;
+    OpenFolderPath: TButton;
+    ButtonReadCSV: TButton;
+    StringGridCSV: TStringGrid;
+    procedure OpenFolderPathClick(Sender: TObject);
+    procedure ButtonReadCSVClick(Sender: TObject);
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  Form1: TForm1;
+
+implementation
+
+{$R *.dfm}
+
+procedure TForm1.ButtonReadCSVClick(Sender: TObject);
+var
+  Files: TStringDynArray;
+  FileContent: TStringList;
+  FilePath, Line: string;
+  Row, Col: Integer;
+begin
+  // Assuming the target folder path is in EditFolderPath.Text
+  Files := TDirectory.GetFiles(EditFolderPath.Text, '*.csv');
+
+  // Prepare the StringGrid
+  StringGridCSV.RowCount := 1; // Resets the grid and sets a single row for headers
+  StringGridCSV.ColCount := 5; // Set this to the number of columns you expect in the CSV files
+
+  for FilePath in Files do
+  begin
+    FileContent := TStringList.Create;
+    try
+      FileContent.LoadFromFile(FilePath);
+
+      // Iterate through the contents of the file
+      for Line in FileContent do
+      begin
+        // Increment the row count for each line read
+        StringGridCSV.RowCount := StringGridCSV.RowCount + 1;
+        Row := StringGridCSV.RowCount - 1;
+
+        // Split the CSV line into an array and populate the grid
+        var Cells := Line.Split([',']); // Assumes that the CSV delimiter is a comma
+        for Col := 0 to High(Cells) do
+        begin
+          if Col < StringGridCSV.ColCount then
+            StringGridCSV.Cells[Col, Row] := Cells[Col]
+          else
+            Break; // Prevents from going out of bounds if more data than columns
+        end;
+      end;
+
+    finally
+      FileContent.Free;
+    end;
+  end;
+end;
+
+procedure TForm1.OpenFolderPathClick(Sender: TObject);
+begin
+  var Dialog := TFileOpenDialog.Create(nil);
+  try
+    Dialog.Options := Dialog.Options + [fdoPickFolders];
+    if Dialog.Execute then
+      EditFolderPath.Text := Dialog.FileName;
+  finally
+    Dialog.Free;
+  end;
+end;
+
+end.

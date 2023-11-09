@@ -3,9 +3,9 @@
 	<Transactions>
     <Transaction>2023/11/07 13:52:41.000.840,=C:\Users\User\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
     <Transaction>2023/11/08 09:45:40.000.377,=C:\Users\User\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
-    <Transaction>2023/11/09 15:07:16.797,=C:\Users\User\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
-    <Transaction>2023/11/09 15:08:02.413,C:\dev\DELPHI\dephi_importcsv\ImportCSV.dfm=C:\Users\User\Documents\Embarcadero\Studio\Projects\Unit1.dfm</Transaction>
-    <Transaction>2023/11/09 15:08:02.413,C:\dev\DELPHI\dephi_importcsv\ImportCSV.pas=C:\Users\User\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
-    <Transaction>2023/11/09 15:08:32.198,C:\dev\DELPHI\dephi_importcsv\Project1.dproj=C:\Users\User\Documents\Embarcadero\Studio\Projects\Project1.dproj</Transaction>
+    <Transaction>2023/11/09 15:37:33.000.255,=C:\Users\User\Documents\Embarcadero\Studio\Projects\Unit1.pas</Transaction>
+    <Transaction>2023/11/09 15:47:13.000.975,C:\Users\User\Documents\Embarcadero\Studio\Projects\Unit1.dfm=C:\dev\DELPHI\delphi_importcsvinfolder\Unit1.dfm</Transaction>
+    <Transaction>2023/11/09 15:47:13.000.975,C:\Users\User\Documents\Embarcadero\Studio\Projects\Unit1.pas=C:\dev\DELPHI\delphi_importcsvinfolder\Unit1.pas</Transaction>
+    <Transaction>2023/11/09 16:06:06.000.671,C:\Users\User\Documents\Embarcadero\Studio\Projects\Project1.dproj=C:\dev\DELPHI\delphi_importcsvinfolder\Project1.dproj</Transaction>
   </Transactions>
 </BorlandProject>

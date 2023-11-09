@@ -1,0 +1,100 @@
+unit Unit1;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  System.IOUtils, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.Grids, System.Types;
+
+type
+  TForm1 = class(TForm)
+    FolderDialog: TFileOpenDialog;
+    EditFolderPath: TEdit;
+    OpenFolderPath: TButton;
+    ButtonReadCSV: TButton;
+    StringGridCSV: TStringGrid;
+    procedure OpenFolderPathClick(Sender: TObject);
+    procedure ButtonReadCSVClick(Sender: TObject);
+  private
+    { Private declarations }
+  public
+    { Public declarations }
+  end;
+
+var
+  Form1: TForm1;
+
+implementation
+
+{$R *.dfm}
+
+procedure TForm1.ButtonReadCSVClick(Sender: TObject);
+var
+  Files: TStringDynArray;
+  CSVLines, FirstLineCells: TStringList;
+  FilePath, Line: string;
+  Row, Col: Integer;
+  CSVHeaderRead: Boolean;
+begin
+  // Assuming the target folder path is in EditFolderPath.Text
+  Files := TDirectory.GetFiles(EditFolderPath.Text, '*.csv');
+  CSVHeaderRead := False; // flag to check if header is read
+
+  for FilePath in Files do
+  begin
+    CSVLines := TStringList.Create;
+    try
+      CSVLines.LoadFromFile(FilePath);
+
+      // Only process header for the first file
+      if not CSVHeaderRead then
+      begin
+        FirstLineCells := TStringList.Create;
+        try
+          // Assumes that the CSV delimiter is a comma
+          ExtractStrings([','], [], PChar(CSVLines[0]), FirstLineCells);
+          // Set ColCount to the number of columns from the first line
+          StringGridCSV.ColCount := FirstLineCells.Count;
+          CSVHeaderRead := True; // Set the header as read after first file
+        finally
+          FirstLineCells.Free;
+        end;
+      end;
+
+      // Remove the header line for subsequent files
+      if CSVHeaderRead and (StringGridCSV.RowCount > 1) then
+        CSVLines.Delete(0);
+
+      // Iterate through the contents of the file
+      for Line in CSVLines do
+      begin
+        // Increment the row count for each line read
+        StringGridCSV.RowCount := StringGridCSV.RowCount + 1;
+        Row := StringGridCSV.RowCount - 1;
+
+        // Split the CSV line into an array and populate the grid
+        var Cells := Line.Split([',']); // Assumes that the CSV delimiter is a comma
+        for Col := 0 to StringGridCSV.ColCount - 1 do
+        begin
+          StringGridCSV.Cells[Col, Row] := Cells[Col];
+        end;
+      end;
+    finally
+      CSVLines.Free;
+    end;
+  end;
+end;
+
+procedure TForm1.OpenFolderPathClick(Sender: TObject);
+begin
+  var Dialog := TFileOpenDialog.Create(nil);
+  try
+    Dialog.Options := Dialog.Options + [fdoPickFolders];
+    if Dialog.Execute then
+      EditFolderPath.Text := Dialog.FileName;
+  finally
+    Dialog.Free;
+  end;
+end;
+
+end.
