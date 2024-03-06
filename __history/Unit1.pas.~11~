@@ -1,0 +1,172 @@
+unit Unit1;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes,
+  Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Data.DB, Vcl.StdCtrls,
+  Vcl.ComCtrls, Vcl.ExtCtrls, Uni, UniProvider, OracleUniProvider, MemDS, Vcl.Grids, Vcl.DBGrids,
+  DBAccess, Vcl.ExtDlgs,System.IniFiles ,DateUtils, System.ImageList,
+  Vcl.ImgList, Vcl.Buttons, Vcl.Menus, Winapi.Winsock , SettingsForm
+
+;
+
+type
+  TForm1 = class(TForm)
+    FolderDialog: TFileOpenDialog;
+    EditFolderPath: TEdit;
+    OpenFolderPath: TButton;
+    ButtonReadCSV: TButton;
+    StringGridCSV: TStringGrid;
+    SpeedButtonIMP: TSpeedButton;
+    UniConnection1: TUniConnection;
+    UniQuery1: TUniQuery;
+    OracleUniProvider1: TOracleUniProvider;
+    procedure OpenFolderPathClick(Sender: TObject);
+    procedure ButtonReadClick(Sender: TObject);
+    procedure SpeedButtonIMPClick(Sender: TObject);
+  private
+    procedure LoadCSVFilesIntoGrid(const FolderPath: string);
+    procedure ImportDataToDatabase;
+    procedure SetupDatabaseQuery;
+    procedure LoadConnectionParameters;
+  end;
+
+var
+  Form1: TForm1;
+
+implementation
+
+{$R *.dfm}
+
+
+procedure TForm1.SetupDatabaseQuery;
+begin
+  UniConnection := TUniConnection.Create(nil);
+  LoadConnectionParameters;
+  UniQuery := TUniQuery.Create(nil);
+  UniQuery.Connection := UniConnection;
+  UniQuery.SQL.Text := 'select * from DENSO_IF_NEDO_DATA_PLAN';
+  UniQuery.Open;
+end;
+
+procedure TForm1.LoadConnectionParameters;
+var
+  IniFile: TIniFile;
+  FileName: string;
+  // Can't declare Username, Password *Conflict with UnitConnection Variable Name
+  DirectDBName, User, Pass: string;
+begin
+  FileName := ExtractFilePath(Application.ExeName) + 'Setup\SetUp.Ini'; // Use backslash for path in Windows
+  // Check if the INI file exists
+  if not FileExists(FileName) then
+  begin
+    WriteLog('Error: INI file not found at ' + FileName); // Replace WriteLog with your actual logging procedure
+    InsertLogData(Now,1,'Error: INI file not found at ' + FileName,GetProgramName,GetAppVersion, '', 0, Now) ;
+    Exit; // Exit the procedure if the file does not exist
+  end;
+
+  IniFile := TIniFile.Create(FileName);
+  try
+    DirectDBName := IniFile.ReadString('Setting', 'DIRECTDBNAME', '');
+    User := IniFile.ReadString('Setting', 'USERNAME', '');
+    Pass := IniFile.ReadString('Setting', 'PASSWORD', '');
+    with UniConnection do
+    begin
+      if not Connected then
+      begin
+        ProviderName := 'Oracle';
+        SpecificOptions.Values['Direct'] := 'True';
+        Server := DirectDBName;
+        Username := User;
+        Password := Pass;
+        Connect; // Establish the connection
+      end;
+    end;
+  finally
+    IniFile.Free; // Always free the TIniFile object when done
+  end;
+end;
+
+procedure TForm1.OpenFolderPathClick(Sender: TObject);
+begin
+  FolderDialog.Options := FolderDialog.Options + [fdoPickFolders];
+  if FolderDialog.Execute then
+  begin
+    EditFolderPath.Text := FolderDialog.FileName;
+  end;
+end;
+
+procedure TForm1.SpeedButtonIMPClick(Sender: TObject);
+begin
+   ImportDataToDatabase;
+end;
+
+procedure TForm1.ButtonReadClick(Sender: TObject);
+begin
+  LoadCSVFilesIntoGrid(EditFolderPath.Text);
+end;
+
+procedure TForm1.ImportDataToDatabase;
+begin
+  //wait
+  end;
+
+
+
+
+
+
+procedure TForm1.LoadCSVFilesIntoGrid(const FolderPath: string);
+var
+  Files: TStringDynArray;
+  CSVLines: TStringList;
+  FilePath, Line: string;
+  Row, Col, MaxCol: Integer;
+  CSVHeaderRead: Boolean;
+begin
+  Files := TDirectory.GetFiles(FolderPath, '*.csv');
+  CSVHeaderRead := False;
+  MaxCol := 0;
+
+  for FilePath in Files do
+  begin
+    CSVLines := TStringList.Create;
+    try
+      CSVLines.LoadFromFile(FilePath);
+
+      // Determine column count from header if it's not been set yet
+      if not CSVHeaderRead then
+      begin
+        var HeaderCells := CSVLines[0].Split([',']);
+        MaxCol := Length(HeaderCells);
+        StringGridCSV.ColCount := MaxCol;
+        StringGridCSV.RowCount := 1;
+        // Set the header
+        for Col := 0 to High(HeaderCells) do
+          StringGridCSV.Cells[Col, 0] := HeaderCells[Col];
+        CSVHeaderRead := True;
+      end;
+
+      // Skip the header line for all files
+      for Row := 1 to CSVLines.Count - 1 do
+      begin
+        Line := CSVLines[Row];
+        var Cells := Line.Split([',']);
+        // Add a new row to the grid for each line read
+        StringGridCSV.RowCount := StringGridCSV.RowCount + 1;
+        // Fill the row with data
+        for Col := 0 to High(Cells) do
+        begin
+          if Col < MaxCol then
+            StringGridCSV.Cells[Col, StringGridCSV.RowCount - 1] := Cells[Col];
+        end;
+      end;
+    finally
+      CSVLines.Free;
+    end;
+  end;
+end;
+
+end.
+

@@ -1,0 +1,129 @@
+unit Unit1;
+
+interface
+
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  System.IOUtils, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.Grids, System.Types;
+
+type
+  TForm1 = class(TForm)
+    FolderDialog: TFileOpenDialog;
+    EditFolderPath: TEdit;
+    OpenFolderPath: TButton;
+    ButtonReadCSV: TButton;
+    StringGridCSV: TStringGrid;
+    ButtonImport: TButton;
+    procedure OpenFolderPathClick(Sender: TObject);
+    procedure ButtonImportClick(Sender: TObject);
+  private
+    procedure LoadCSVFilesIntoGrid(const FolderPath: string);
+    procedure ImportDataToDatabase;
+  end;
+
+var
+  Form1: TForm1;
+
+implementation
+
+{$R *.dfm}
+
+procedure TForm1.OpenFolderPathClick(Sender: TObject);
+begin
+  FolderDialog.Options := FolderDialog.Options + [fdoPickFolders];
+  if FolderDialog.Execute then
+  begin
+    EditFolderPath.Text := FolderDialog.FileName;
+  end;
+end;
+
+procedure TForm1.ButtonReadClick(Sender: TObject);
+begin
+  LoadCSVFilesIntoGrid(EditFolderPath.Text);
+end;
+
+procedure TForm1.ButtonImportClick(Sender: TObject);
+begin
+  ImportDataToDatabase;
+end;
+
+procedure TForm1.ImportDataToDatabase;
+var
+  Row, Col: Integer;
+  SQL: string;
+begin
+  ADOConnection.ConnectionString := 'Your connection string here';
+  ADOConnection.LoginPrompt := False;
+  ADOConnection.Connected := True;
+
+  for Row := 1 to StringGridCSV.RowCount - 1 do
+  begin
+    SQL := 'INSERT INTO YourTableName (Column1, Column2, ..., ColumnN) VALUES (';
+    for Col := 0 to StringGridCSV.ColCount - 1 do
+    begin
+      SQL := SQL + QuotedStr(StringGridCSV.Cells[Col, Row]);
+      if Col < StringGridCSV.ColCount - 1 then
+        SQL := SQL + ', ';
+    end;
+    SQL := SQL + ')';
+    ADOQuery.SQL.Text := SQL;
+    ADOQuery.ExecSQL;
+  end;
+
+  ADOConnection.Connected := False;
+end;
+
+
+procedure TForm1.LoadCSVFilesIntoGrid(const FolderPath: string);
+var
+  Files: TStringDynArray;
+  CSVLines: TStringList;
+  FilePath, Line: string;
+  Row, Col, MaxCol: Integer;
+  CSVHeaderRead: Boolean;
+begin
+  Files := TDirectory.GetFiles(FolderPath, '*.csv');
+  CSVHeaderRead := False;
+  MaxCol := 0;
+
+  for FilePath in Files do
+  begin
+    CSVLines := TStringList.Create;
+    try
+      CSVLines.LoadFromFile(FilePath);
+
+      // Determine column count from header if it's not been set yet
+      if not CSVHeaderRead then
+      begin
+        var HeaderCells := CSVLines[0].Split([',']);
+        MaxCol := Length(HeaderCells);
+        StringGridCSV.ColCount := MaxCol;
+        StringGridCSV.RowCount := 1;
+        // Set the header
+        for Col := 0 to High(HeaderCells) do
+          StringGridCSV.Cells[Col, 0] := HeaderCells[Col];
+        CSVHeaderRead := True;
+      end;
+
+      // Skip the header line for all files
+      for Row := 1 to CSVLines.Count - 1 do
+      begin
+        Line := CSVLines[Row];
+        var Cells := Line.Split([',']);
+        // Add a new row to the grid for each line read
+        StringGridCSV.RowCount := StringGridCSV.RowCount + 1;
+        // Fill the row with data
+        for Col := 0 to High(Cells) do
+        begin
+          if Col < MaxCol then
+            StringGridCSV.Cells[Col, StringGridCSV.RowCount - 1] := Cells[Col];
+        end;
+      end;
+    finally
+      CSVLines.Free;
+    end;
+  end;
+end;
+
+end.
+
