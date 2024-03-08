@@ -1,0 +1,45 @@
+2024-03-08 12:40:59: Error importing row 1: ORA-02289: sequence does not exist
+
+2024-03-08 12:41:01: Error importing row 2: ORA-02289: sequence does not exist
+
+2024-03-08 12:41:02: Error importing row 3: ORA-02289: sequence does not exist
+
+2024-03-08 12:41:03: Error importing row 4: ORA-02289: sequence does not exist
+
+2024-03-08 12:41:03: Error importing row 5: ORA-02289: sequence does not exist
+
+2024-03-08 12:41:04: Error importing row 6: ORA-02289: sequence does not exist
+
+2024-03-08 12:41:04: Error importing row 7: ORA-02289: sequence does not exist
+
+2024-03-08 12:41:52: Error importing row 1: ORA-02289: sequence does not exist
+
+2024-03-08 12:42:40: Error importing row 1: ORA-02289: sequence does not exist
+
+2024-03-08 12:44:29: Error importing row 1: ORA-02289: sequence does not exist
+
+2024-03-08 12:47:57: Error importing row 1: ORA-02289: sequence does not exist
+
+2024-03-08 12:48:47: Error importing row 2: ORA-00001: unique constraint (DOCTOR_DATA_TKOITO_20240229.JISEKIDATAINDEX1) violated
+
+2024-03-08 13:09:22: Error importing row 1: ORA-02289: sequence does not exist
+
+2024-03-08 13:09:57: Error importing row 1: ORA-02289: sequence does not exist
+
+2024-03-08 13:18:11: Error importing row 1: ORA-00001: unique constraint (DOCTOR_DATA_TKOITO_20240229.JISEKIDATAINDEX1) violated
+
+2024-03-08 13:27:44: Error importing row 1: '' is not a valid integer value
+2024-03-08 15:08:03: Error importing row 1: ORA-00904: "GHIMOUKUCD": invalid identifier
+
+2024-03-08 15:16:26: Error importing row 1: ORA-00904: "GHIMOUKUCD": invalid identifier
+
+2024-03-08 15:16:36: Error importing row 1: ORA-00904: "GHIMOUKUCD": invalid identifier
+
+2024-03-08 15:17:25: Error importing row 1: ORA-00904: "GHIMOUKUCD": invalid identifier
+
+2024-03-08 15:19:49: Error importing row 1: Parameter 'KoteitankaValue' not found
+2024-03-08 15:22:29: Error importing row 1: Parameter 'KoteitankaValue' not found
+2024-03-08 15:22:51: Error importing row 1: Parameter 'KoteitankaValue' not found
+2024-03-08 15:23:19: Error importing row 1: Parameter 'KoteitankaValue' not found
+2024-03-08 15:24:40: Error importing row 1: Parameter 'KoteitankaValue' not found
+2024-03-08 15:31:56: Error importing row 1: Parameter 'KoteitankaValue' not found

@@ -2,8 +2,8 @@ object Form1: TForm1
   Left = 0
   Top = 0
   Caption = 'Form1'
-  ClientHeight = 445
-  ClientWidth = 870
+  ClientHeight = 474
+  ClientWidth = 1113
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -39,29 +39,26 @@ object Form1: TForm1
   end
   object ButtonReadCSV: TButton
     Left = 95
-    Top = -1
-    Width = 66
-    Height = 67
+    Top = 8
+    Width = 82
+    Height = 58
     Caption = 'Read'
     TabOrder = 2
     OnClick = ButtonReadClick
   end
   object StringGridCSV: TStringGrid
-    Left = 8
-    Top = 80
-    Width = 854
-    Height = 362
+    Left = -8
+    Top = 64
+    Width = 1121
+    Height = 402
     TabOrder = 3
   end
   object StatusBar1: TStatusBar
     Left = 0
-    Top = 426
-    Width = 870
+    Top = 455
+    Width = 1113
     Height = 19
     Panels = <>
-    ExplicitLeft = 440
-    ExplicitTop = 232
-    ExplicitWidth = 0
   end
   object FolderDialog: TFileOpenDialog
     FavoriteLinks = <>
