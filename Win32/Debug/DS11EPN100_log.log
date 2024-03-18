@@ -43,3 +43,6 @@
 2024-03-08 15:23:19: Error importing row 1: Parameter 'KoteitankaValue' not found
 2024-03-08 15:24:40: Error importing row 1: Parameter 'KoteitankaValue' not found
 2024-03-08 15:31:56: Error importing row 1: Parameter 'KoteitankaValue' not found
+2024-03-11 10:05:25: Error importing row 1: ORA-01861: literal does not match format string
+
+2024-03-11 10:11:49: Error importing row 1: Parameter 'Tourokuymd' not found
