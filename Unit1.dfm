@@ -2,16 +2,18 @@ object Form1: TForm1
   Left = 0
   Top = 0
   Caption = 'TKOITO Import'
-  ClientHeight = 511
-  ClientWidth = 769
+  ClientHeight = 453
+  ClientWidth = 723
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -12
   Font.Name = 'Segoe UI'
   Font.Style = []
+  Menu = MainMenu1
   OnClose = FormClose
   OnCreate = FormCreate
+  OnResize = FormResize
   OnShow = FormShow
   TextHeight = 15
   object SpeedButtonIMP: TSpeedButton
@@ -47,8 +49,15 @@ object Form1: TForm1
     Layout = blGlyphTop
     OnClick = SpeedButton2Click
   end
+  object LabelPath: TLabel
+    Left = 242
+    Top = 19
+    Width = 33
+    Height = 15
+    Caption = 'Path : '
+  end
   object EditFolderPath: TEdit
-    Left = 233
+    Left = 281
     Top = 16
     Width = 377
     Height = 23
@@ -58,8 +67,8 @@ object Form1: TForm1
   object StringGridCSV: TStringGrid
     Left = 0
     Top = 64
-    Width = 769
-    Height = 409
+    Width = 721
+    Height = 370
     DefaultColWidth = 32
     TabOrder = 1
     ColWidths = (
@@ -71,12 +80,17 @@ object Form1: TForm1
   end
   object StatusBar1: TStatusBar
     Left = 0
-    Top = 492
-    Width = 769
+    Top = 434
+    Width = 723
     Height = 19
     Panels = <>
-    ExplicitTop = 619
-    ExplicitWidth = 1288
+  end
+  object ProgressBar1: TProgressBar
+    Left = 281
+    Top = 41
+    Width = 120
+    Height = 17
+    TabOrder = 3
   end
   object FolderDialog: TFileOpenDialog
     FavoriteLinks = <>
@@ -1170,5 +1184,27 @@ object Form1: TForm1
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
       000000000000}
+  end
+  object MainMenu1: TMainMenu
+    Left = 616
+    Top = 48
+    object file1: TMenuItem
+      Caption = 'File'
+      object file2: TMenuItem
+        Caption = 'Close'
+        OnClick = file2Click
+      end
+    end
+    object Help1: TMenuItem
+      Caption = 'Help'
+      object Help2: TMenuItem
+        Caption = 'Contact'
+        OnClick = Help2Click
+      end
+      object Whatisthis1: TMenuItem
+        Caption = 'Info'
+        OnClick = Whatisthis1Click
+      end
+    end
   end
 end

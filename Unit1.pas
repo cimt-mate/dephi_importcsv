@@ -8,7 +8,7 @@ uses
   Vcl.ComCtrls, Vcl.ExtCtrls, Uni, UniProvider, OracleUniProvider, MemDS, Vcl.Grids, Vcl.DBGrids,
   DBAccess, Vcl.ExtDlgs,System.IniFiles ,DateUtils, System.ImageList,ImportSetting,
   Vcl.ImgList, Vcl.Buttons, Vcl.Menus, Winapi.Winsock   , System.Types  ,System.IOUtils,System.StrUtils
-  ,IpHlpApi,IpTypes, Vcl.ButtonGroup, Vcl.ToolWin
+  ,IpHlpApi,IpTypes, Vcl.ButtonGroup, Vcl.ToolWin ,System.RegularExpressions
 
 ;
 
@@ -26,6 +26,14 @@ type
     ImageList1: TImageList;
     SpeedButton1: TSpeedButton;
     SpeedButton2: TSpeedButton;
+    ProgressBar1: TProgressBar;
+    LabelPath: TLabel;
+    MainMenu1: TMainMenu;
+    file1: TMenuItem;
+    file2: TMenuItem;
+    Help1: TMenuItem;
+    Help2: TMenuItem;
+    Whatisthis1: TMenuItem;
     procedure OpenFolderPathClick(Sender: TObject);
     procedure ButtonReadClick(Sender: TObject);
     procedure SpeedButtonIMPClick(Sender: TObject);
@@ -34,6 +42,13 @@ type
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure FormShow(Sender: TObject);
     procedure SpeedButton2Click(Sender: TObject);
+    procedure file2Click(Sender: TObject);
+    procedure Help2Click(Sender: TObject);
+    procedure Whatisthis1Click(Sender: TObject);
+    procedure SetIndex;
+    procedure FormResize(Sender: TObject);
+    procedure AdjustLastColumnWidth(Grid: TStringGrid);
+    procedure Managefile;
   private
     procedure LoadCSVFilesIntoGrid(const FolderPath: string);
     procedure ImportDataToDatabase;
@@ -56,11 +71,25 @@ type
     procedure CheckGRDFolder;
     function GetStringGridRowData(Grid: TStringGrid; RowIndex: Integer): String;
     function GetCellValueByColumnName(StringGrid: TStringGrid; HeaderName: string; Row: Integer): string;
+    function CalculateWorkingTime(StartTimeStr, EndTimeStr,Shift: string): String;
+    function MaxDateTime(const A, B: TDateTime): TDateTime;
+    function MinDateTime(const A, B: TDateTime): TDateTime;
+    function IsMaxTime(CellValue1, CellValue2: string): string;
+    function MaxFloat(const A, B: Double): Double;
+    function MinFloat(const A, B: Double): Double;
+    procedure UpdateErrorColumn(Row: Integer; ErrorMessage: string);
+    procedure ClearStringGrid(Grid: TStringGrid);
+    function IsValidTimeFormat(TimeStr: string): Boolean;
   end;
 
 var
   Form1: TForm1;
-
+  Result,Shift_n,Date,WorkerName,EmployeeCode,CodeD,CostProcessName,MoldCode,Model,LampName,PartName : Integer;
+  ModifyJobNo,PartCode,PartMaster,Start,Finish,Min,MCCode,Machmaster,MachStart,MachDate,MachFinish,MachMin,ATC,Remark,Status : Integer;
+  CodeA,CodeB,CodeC : Integer;
+  MovePath : String;
+  Operation,HasErrorFileChoice,HasLogFile,ErrorPath,FolderPath : String;
+  CurrentDateTime: TDateTime;
 implementation
 
 {$R *.dfm}
@@ -153,7 +182,12 @@ begin
   IniFile := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'GRD\' + ChangeFileExt(ExtractFileName(Application.ExeName),'') + '.ini');
   try
     EditFolderPath.Text := IniFile.ReadString('Settings', 'FolderPath', '');
-    // Initialize other settings as needed.
+    FolderPath := IniFile.ReadString('Settings', 'FolderPath', '');
+    ErrorPath := IniFile.ReadString('Settings', 'ErrorPath', '');
+    MovePath :=  IniFile.ReadString('Settings', 'MovePath', '');
+    Operation :=  IniFile.ReadString('Settings', 'Operation', '');
+    HasLogFile :=  IniFile.ReadString('Settings', 'HasLogFile', '');
+    HasErrorFileChoice :=  IniFile.ReadString('Settings', 'HasErrorFile', '');
   finally
     IniFile.Free;
   end;
@@ -271,6 +305,7 @@ begin
       Timer1.OnTimer := Timer1Timer;
       finally
     WSACleanup;
+    StringGridCSV.Anchors := [akLeft, akTop, akRight, akBottom];
   end;
 end;
 
@@ -355,6 +390,11 @@ begin
   end;
 end;
 
+procedure TForm1.Whatisthis1Click(Sender: TObject);
+begin
+  ShowMessage('TKOITO IMPORT ACTUAL')
+end;
+
 procedure TForm1.WriteLog(const LogMessage: string);
 var
   LogFileName: string;
@@ -362,41 +402,76 @@ var
   LineCount: Integer;
   TempList: TStringList;
 begin
-  LogFileName := ExtractFilePath(Application.ExeName) + '/KT01IMP100_log.log';
-
-  // Counting the number of lines in the log file
-  LineCount := 0;
-  if FileExists(LogFileName) then
+  if HasErrorFileChoice = '1' then
   begin
-    TempList := TStringList.Create;
-    try
-      TempList.LoadFromFile(LogFileName);
-      LineCount := TempList.Count;
-    finally
-      TempList.Free;
-    end;
+        LogFileName := ErrorPath + '/KT10IMP100_log.log';
+
+        // Counting the number of lines in the log file
+        LineCount := 0;
+        if FileExists(LogFileName) then
+        begin
+          TempList := TStringList.Create;
+          try
+            TempList.LoadFromFile(LogFileName);
+            LineCount := TempList.Count;
+          finally
+            TempList.Free;
+          end;
+        end;
+
+        // Clear the log file if it exceeds 200 lines
+        if LineCount >= 200 then
+        begin
+          AssignFile(LogFile, LogFileName);
+          Rewrite(LogFile); // This clears the file
+          CloseFile(LogFile);
+        end;
+        // Append the new log message
+        try
+          AssignFile(LogFile, LogFileName);
+          if FileExists(LogFileName) then
+            Append(LogFile)
+          else
+            Rewrite(LogFile);
+
+          Writeln(LogFile, FormatDateTime('yyyy-mm-dd hh:nn:ss', Now) + ': ' + LogMessage);
+        finally
+          CloseFile(LogFile);
+        end;
   end;
 
-  // Clear the log file if it exceeds 200 lines
-  if LineCount >= 200 then
-  begin
-    AssignFile(LogFile, LogFileName);
-    Rewrite(LogFile); // This clears the file
-    CloseFile(LogFile);
-  end;
-  // Append the new log message
-  try
-    AssignFile(LogFile, LogFileName);
-    if FileExists(LogFileName) then
-      Append(LogFile)
-    else
-      Rewrite(LogFile);
-
-    Writeln(LogFile, FormatDateTime('yyyy-mm-dd hh:nn:ss', Now) + ': ' + LogMessage);
-  finally
-    CloseFile(LogFile);
-  end;
 end;
+
+procedure Tform1.Managefile;
+var
+  Files: TStringDynArray;
+  FileName: string;
+begin
+  if HasLogFile = '1' then
+    begin
+        if Operation = 'Move' then
+        begin
+          // Get all files in the source directory
+          Files := TDirectory.GetFiles(FolderPath);
+
+          // Ensure the destination directory exists
+          if not TDirectory.Exists(MovePath) then
+            TDirectory.CreateDirectory(MovePath);
+
+          // Move each file to the destination directory
+          for FileName in Files do
+            TFile.Move(FileName, TPath.Combine(MovePath, ExtractFileName(FileName)));
+        end
+        else
+        begin
+          // MovePath is empty, delete all files in the source directory
+            for FileName in Files do
+              TFile.Delete(FileName);
+        end;
+    end;
+
+end;
+
 
 
 procedure TForm1.InsertLogData(LogDateTime: TDateTime; LogKBN: Integer;
@@ -443,6 +518,7 @@ procedure TForm1.SpeedButton2Click(Sender: TObject);
     begin
       Form2 := TForm2.Create(Application);
       Form2.Show;
+      SpeedButton1.Enabled := true;
     end;
 
 procedure TForm1.SpeedButtonIMPClick(Sender: TObject);
@@ -535,8 +611,6 @@ var
           else
           begin
           try
-
-
               StringGridCSV.Cells[GetColumnIndexByHeaderName(StringGridCSV, 'Result'), i] := 'Imported';
           except
             on E: Exception do
@@ -556,7 +630,7 @@ var
       end;
     finally
       ErrorLog.Free;
-
+      SpeedButton1.Enabled := true;
     end;
 end;
 
@@ -602,7 +676,10 @@ end;
 
 procedure TForm1.ButtonReadClick(Sender: TObject);
 begin
+  ClearStringGrid(StringGridCSV);
   LoadCSVFilesIntoGrid(EditFolderPath.Text);
+  SpeedButton1.Enabled := false;
+
 end;
 
 procedure TForm1.ImportDataToDatabase;
@@ -611,27 +688,38 @@ var
   IniFileName: string;
   CD2Value: string;
   Row, Col: Integer;
-  Value1, Value2, JhValue, Sagyoh, Kikaikadoh: Integer;
+  Value1, Value2, JhValue, Sagyoh, Kikaikadoh , MinMan,MinMach: Integer;
   InsertQuery: TUniQuery;
-  SQL, SeizonoValue, BucdValue, BunmValue: string;
-  Gkoteicd, Kikaicd, Jigucd, Tantocd, Ymds, Bikou, Jisekibikou: string;
-  MaxTime, FormattedDateTime: string;
+  SQL, SeizonoValue, BucdValue,MachValue, BunmValue: string;
+  Gkoteicd, Kikaicd, Jigucd, Tantocd, Ymds ,Ymde, Bikou, Jisekibikou: string;
+  MaxTime, FormattedDateTime,FormattedDateEnd,time: string;
   MaxJDSEQNO, NewJDSEQNO, GHIMOKUCDValue: Integer;
   Tourokuymd: TDateTime;
   YujintankaValue, KikaitankaValue, KoteitankaValue, YujinkinValue, MujinkinValue, KinsumValue: Double;
   CompName, MACAddr, WinUserName, ExeName, ExeVersion: string;
   Buffer: array[0..MAX_COMPUTERNAME_LENGTH + 1] of Char;
   Size: DWORD;
+  StartTime, EndTime, TimeDifference: Double;
+  ResultDate: TDateTime;
+  timeS,timeE,shift : string;
+  DateValue,DateMachineValue: TDateTime;
+  DateStr: string;
+  TimeStr,TimeFinish,TimeStrMach,TimeFinishMach,DateMach: string;
 begin
   // Load the database connection parameters
   LoadConnectionParameters;
+  SetIndex;
 
   // Check if the UniConnection is connected
   if not UniConnection.Connected then
   begin
-    ShowMessage('Error: Database connection is not established.');
+    ShowMessage('Error: Database connection .');
     Exit;
   end;
+
+    // Initialize the progress bar
+  ProgressBar1.Max := StringGridCSV.RowCount - 1;
+  ProgressBar1.Position := 0;
 
   // Initialize the query component
   InsertQuery := TUniQuery.Create(nil);
@@ -645,121 +733,417 @@ begin
     begin
       try
         // Read ini file
-        IniFileName := ExtractFilePath(Application.ExeName) + '/Setup/DRLOGIN.ini';
-        if not FileExists(IniFileName) then
-          raise Exception.CreateFmt('INI file not found: %s', [IniFileName]);
+            IniFileName := ExtractFilePath(Application.ExeName) + '/Setup/DRLOGIN.ini';
+            if not FileExists(IniFileName) then
+            begin
+              WriteLog('INI file not found: ' + IniFileName);
+              UpdateErrorColumn(Row, 'INI file not found');
+              Continue; // Skip to the next iteration of the loop
+            end;
+            IniFile := TIniFile.Create(IniFileName);
+            try
+              CD2Value := IniFile.ReadString('TLogOnForm', 'CD2', '');
+              if CD2Value = '' then
+              begin
+                WriteLog('CD2 value not found or INI file not read correctly.');
+                UpdateErrorColumn(Row, 'CD2 value not found');
+                Continue; // Skip to the next iteration of the loop
+              end;
+            finally
+              IniFile.Free;
+            end;
+       //Get ComputerName,MacAddress,WindowsUsername,ExecutableName,Executable Version
+            // Get Computer Name
+            Size := MAX_COMPUTERNAME_LENGTH + 1;
+            if not GetComputerName(Buffer, Size) then
+            begin
+              WriteLog('Failed to get computer name.');
+              UpdateErrorColumn(Row, 'Failed to get computer name');
+              Continue; // Skip to the next iteration of the loop
+            end;
+            CompName := Buffer;
+            // Get MAC Address
+            MACAddr := GetMACAddress;
+            if MACAddr = '' then
+            begin
+              WriteLog('Failed to get MAC address.');
+              UpdateErrorColumn(Row, 'Failed to get MAC address');
+              Continue; // Skip to the next iteration of the loop
+            end;
+            // Get Windows Username
+            WinUserName := GetWindowsUserName;
+            if WinUserName = '' then
+            begin
+              WriteLog('Failed to get Windows username.');
+              UpdateErrorColumn(Row, 'Failed to get Windows username');
+              Continue; // Skip to the next iteration of the loop
+            end;
+            // Get Executable Name
+            ExeName := ExtractFileName(Application.ExeName);
+            if ExeName = '' then
+            begin
+              WriteLog('Failed to get executable name.');
+              UpdateErrorColumn(Row, 'Failed to get executable name');
+              Continue; // Skip to the next iteration of the loop
+            end;
+            // Get Executable Version
+            ExeVersion := GetFileVersion(Application.ExeName);
+            if ExeVersion = '' then
+            begin
+              WriteLog('Failed to get executable version.');
+              UpdateErrorColumn(Row, 'Failed to get executable version');
+              Continue; // Skip to the next iteration of the loop
+            end;
 
-        IniFile := TIniFile.Create(IniFileName);
-        try
-          CD2Value := IniFile.ReadString('TLogOnForm', 'CD2', '');
-          if CD2Value = '' then
-            raise Exception.Create('CD2 value not found or INI file not read correctly.');
-        finally
-          IniFile.Free;
-        end;
+       //prepare and validation Data
+          // WorkerCD,Job,CostProcess,ymds not null
+          SeizonoValue := StringGridCSV.Cells[ModifyJobNo, Row];   //seizo,modify job no.
+          Gkoteicd := StringGridCSV.Cells[CodeD, Row];      //CostProcess CD,CodeD,gkoteicd
+          Tantocd := StringGridCSV.Cells[EmployeeCode, Row];       //Employee CD,tantocd
+          Ymds := StringGridCSV.Cells[Date, Row];          //ymds , date start
+          BucdValue := StringGridCSV.Cells[PartCode, Row]; //partcd
 
-        // Get Computer Name
-        Size := MAX_COMPUTERNAME_LENGTH + 1;
-        if not GetComputerName(Buffer, Size) then
-          raise Exception.Create('Failed to get computer name.');
-        CompName := Buffer;
+         //Check Date format DD/MM/YYYY
+         DateStr := StringGridCSV.Cells[Date, Row]; // 'Date' should be replaced with the actual index of your date column
+         if (DateStr = '') and not TryStrToDate(StringGridCSV.Cells[Date, Row], DateValue) then
+            begin
+              UpdateErrorColumn(Row, 'Invalid or missing date format');
+              UpdateResultColumn(Row, 'NG');
+              // You can also log the error, update a status column, etc.
+              Continue; // Skip to the next iteration of the loop
+            end;
 
-        // Get MAC Address
-        MACAddr := GetMACAddress;
-        if MACAddr = '' then
-          raise Exception.Create('Failed to get MAC address.');
 
-        // Get Windows Username
-        WinUserName := GetWindowsUserName;
-        if WinUserName = '' then
-          raise Exception.Create('Failed to get Windows username.');
+         try
+         //WorkerCD
+         InsertQuery.SQL.Text := 'SELECT COUNT(*) AS Count FROM tantomst WHERE tantocd = :tantocd';
+         InsertQuery.ParamByName('tantocd').AsString := Tantocd;
+         InsertQuery.Open;
+         if (Tantocd <> '') and (InsertQuery.FieldByName('Count').AsInteger <= 0) then
+            begin
+              UpdateErrorColumn(Row, 'Employee Code is Invalid');
+              UpdateResultColumn(Row, 'NG');
+              Continue; // Skip to the next iteration of the loop
+            end;
+          except
+            on E: Exception do
+            begin
+              // Handle exceptions such as connectivity issues, SQL syntax errors, etc.
+              UpdateErrorColumn(Row, 'WorkerCD SQL is Invalid');
+              UpdateErrorColumn(Row, E.Message);
+              UpdateResultColumn(Row, 'NG');
+              Continue; // Skip to the next iteration of the loop
+            end;
+          end;
 
-        // Get Executable Name
-        ExeName := ExtractFileName(Application.ExeName);
-        if ExeName = '' then
-          raise Exception.Create('Failed to get executable name.');
 
-        // Get Executable Version
-        ExeVersion := GetFileVersion(Application.ExeName);
-        if ExeVersion = '' then
-          raise Exception.Create('Failed to get executable version.');
+         try
+         //Cost process CD
+         InsertQuery.SQL.Text := 'SELECT COUNT(*) AS Count FROM kouteigmst WHERE Gkoteicd = :Gkoteicd' ;
+         InsertQuery.ParamByName('Gkoteicd').AsString := Gkoteicd;
+         InsertQuery.Open;
+         if (Gkoteicd <> '') and (InsertQuery.FieldByName('Count').AsInteger <= 0) then
+            begin
+              UpdateErrorColumn(Row, 'Code D is Invalid');
+              UpdateResultColumn(Row, 'NG');
+              Continue; // Skip to the next iteration of the loop
+            end;
+         except
+            on E: Exception do
+            begin
+              // Handle exceptions such as connectivity issues, SQL syntax errors, etc.
+              UpdateErrorColumn(Row, 'Cost process CD SQL is Invalid');
+              UpdateErrorColumn(Row, E.Message);
+              UpdateResultColumn(Row, 'NG');
+              Continue; // Skip to the next iteration of the loop
+            end;
+          end;
+
+         try
+         //Mfg. No.
+         InsertQuery.SQL.Text := 'SELECT COUNT(*) AS Count FROM SEIZOMST WHERE Seizono = :SeizonoValue' ;
+         InsertQuery.ParamByName('SeizonoValue').AsString := SeizonoValue;
+         InsertQuery.Open;
+         if (SeizonoValue <> '') and (InsertQuery.FieldByName('Count').AsInteger <= 0) then
+            begin
+              UpdateErrorColumn(Row, 'Modify Job No is Invalid');
+              UpdateResultColumn(Row, 'NG');
+              Continue; // Skip to the next iteration of the loop
+            end;
+
+         except
+            on E: Exception do
+            begin
+              // Handle exceptions such as connectivity issues, SQL syntax errors, etc.
+              UpdateErrorColumn(Row, 'ModifyJobNo SQL is Invalid');
+              UpdateErrorColumn(Row, E.Message);
+              UpdateResultColumn(Row, 'NG');
+              Continue; // Skip to the next iteration of the loop
+            end;
+          end;
+
+         try
+         //Part Code
+         if BucdValue <> '' then
+         begin
+           InsertQuery.SQL.Text := 'SELECT COUNT(*) AS Count FROM BUHINMST WHERE bucd = :BucdValue' ;
+           InsertQuery.ParamByName('BucdValue').AsString := BucdValue;
+           InsertQuery.Open;
+           if (InsertQuery.FieldByName('Count').AsInteger <= 0) then
+              begin
+                UpdateErrorColumn(Row, 'PartCode is Invalid');
+                UpdateResultColumn(Row, 'NG');
+                Continue; // Skip to the next iteration of the loop
+              end;
+         end;
+         except
+            on E: Exception do
+            begin
+              // Handle exceptions such as connectivity issues, SQL syntax errors, etc.
+              UpdateErrorColumn(Row, 'PART SQL is Invalid');
+              UpdateErrorColumn(Row, E.Message);
+              UpdateResultColumn(Row, 'NG');
+              Continue; // Skip to the next iteration of the loop
+            end;
+          end;
+
+         TimeStr := StringGridCSV.Cells[Start, Row];
+         TimeFinish := StringGridCSV.Cells[Finish, Row];
+         TimeStrMach := StringGridCSV.Cells[MachStart, Row];
+         TimeFinishMach := StringGridCSV.Cells[MachFinish, Row];
+         DateMach :=  StringGridCSV.Cells[MachDate, Row];
+        if not TryStrToInt(StringGridCSV.Cells[Min, Row], MinMan) then MinMan := 0;
+        if not TryStrToInt(StringGridCSV.Cells[MachMin, Row], MinMach) then MinMach := 0;
+        JhValue := MinMan + MinMach;
+        // Calculate additional fields
+        Sagyoh := MinMan + 0 + 0;
+        Kikaikadoh := MinMan + MinMach + 0 + 0;
+
+         // Machine Unman
+         if (TimeStrMach <> '') and (TimeFinishMach <> '') then
+         begin
+             if not (IsValidTimeFormat(TimeStrMach)) then
+             begin
+              UpdateErrorColumn(Row, 'TimeMachStart is Invalid');
+              UpdateResultColumn(Row, 'NG');
+              Continue; // Skip to the next iteration of the loop
+             end;
+
+             if not IsValidTimeFormat(TimeFinishMach) then
+             begin
+              UpdateErrorColumn(Row, 'TimeMachFinish is Invalid');
+              UpdateResultColumn(Row, 'NG');
+              Continue; // Skip to the next iteration of the loop
+             end;
+
+             if (DateMach = '') and not TryStrToDate(StringGridCSV.Cells[MachDate, Row], DateMachineValue ) then
+             begin
+             UpdateErrorColumn(Row, 'MachDate is null');
+              UpdateResultColumn(Row, 'NG');
+              Continue; // Skip to the next iteration of the loop
+             end;
+
+             if MinMach = 0  then
+             begin
+              UpdateErrorColumn(Row, 'MinMach is null');
+              UpdateResultColumn(Row, 'NG');
+              Continue; // Skip to the next iteration of the loop
+             end;
+             bikou := StringGridCSV.Cells[MachMin, Row] ;
+             FormattedDateTime := FormatDateTimeStr(Ymds, MaxTime);  //lasted ymds
+         end
+         //Worker Manned
+          else if (TimeStr <> '') and (TimeFinish <> '') then
+         begin
+             if not IsValidTimeFormat(TimeStr) then
+             begin
+              UpdateErrorColumn(Row, 'TimeStart is Invalid');
+              UpdateResultColumn(Row, 'NG');
+              Continue; // Skip to the next iteration of the loop
+             end;
+
+             if not IsValidTimeFormat(TimeFinish) then
+             begin
+              UpdateErrorColumn(Row, 'TimeFinish is Invalid');
+              UpdateResultColumn(Row, 'NG');
+              Continue; // Skip to the next iteration of the loop
+             end;
+             if MinMan = 0  then
+             begin
+              UpdateErrorColumn(Row, 'MinMan is null');
+              UpdateResultColumn(Row, 'NG');
+              Continue; // Skip to the next iteration of the loop
+             end;
+            timeS    :=  StringGridCSV.Cells[Start, Row];
+            timeE    :=  StringGridCSV.Cells[Finish, Row];
+            shift := StringGridCSV.Cells[Shift_n, Row];
+            bikou := CalculateWorkingTime(timeS,timeE,shift);  // min
+            FormattedDateTime := FormatDateTimeStr(Ymds, MaxTime);  //lasted ymds
+         end
+          else
+         begin
+              UpdateErrorColumn(Row, 'Time is Invalid');
+              UpdateResultColumn(Row, 'NG');
+              Continue; // Skip to the next iteration of the loop
+         end;
+         //calculate for check MinMan
+         if JhValue = StrToInt(bikou) then
+          begin
+            bikou := '0';  //cal min for sure
+          end;
+
+
+          try
+         //Machine CD
+         MachValue := StringGridCSV.Cells[MCCode, Row]; //partcd
+         if MachValue <> '' then
+         begin
+           InsertQuery.SQL.Text := 'SELECT COUNT(*) AS Count FROM kikaimst WHERE kikaicd = :MachValue' ;
+           InsertQuery.ParamByName('MachValue').AsString := MachValue;
+           InsertQuery.Open;
+           if (InsertQuery.FieldByName('Count').AsInteger <= 0) then
+              begin
+                UpdateErrorColumn(Row, 'MachineCD is Invalid');
+                UpdateResultColumn(Row, 'NG');
+                Continue; // Skip to the next iteration of the loop
+              end;
+         end;
+              except
+            on E: Exception do
+            begin
+              // Handle exceptions such as connectivity issues, SQL syntax errors, etc.
+              UpdateErrorColumn(Row, 'Machine SQL is Invalid');
+              UpdateErrorColumn(Row, E.Message);
+              UpdateResultColumn(Row, 'NG');
+              Continue; // Skip to the next iteration of the loop
+            end;
+          end;
+
+         try
+         //Jigucd ATC
+         Jigucd := StringGridCSV.Cells[ATC, Row];  //ATC , Jigucd
+         if Jigucd <> '' then
+         begin
+           InsertQuery.SQL.Text := 'SELECT COUNT(*) AS Count FROM JIGUMST WHERE Jigucd = :Jigucd' ;
+           InsertQuery.ParamByName('Jigucd').AsString := Jigucd;
+           InsertQuery.Open;
+           if (InsertQuery.FieldByName('Count').AsInteger <= 0) then
+              begin
+                UpdateErrorColumn(Row, 'ATC is Invalid');
+                UpdateResultColumn(Row, 'NG');
+                Continue; // Skip to the next iteration of the loop
+              end;
+         end;
+         except
+            on E: Exception do
+            begin
+              // Handle exceptions such as connectivity issues, SQL syntax errors, etc.
+              UpdateErrorColumn(Row, 'ATC SQL is Invalid');
+              UpdateErrorColumn(Row, E.Message);
+              UpdateResultColumn(Row, 'NG');
+              Continue; // Skip to the next iteration of the loop
+            end;
+          end;
+         //Remark
+         Jisekibikou := StringGridCSV.Cells[Remark, Row];
 
         // Prepare data for insertion
-        SeizonoValue := StringGridCSV.Cells[9, Row];
-        BucdValue := StringGridCSV.Cells[10, Row];
-        BunmValue := GetBunmFromBucd(BucdValue);
-        Gkoteicd := StringGridCSV.Cells[4, Row];
-        Kikaicd := StringGridCSV.Cells[14, Row];
-        Jigucd := StringGridCSV.Cells[21, Row];
-        Tantocd := StringGridCSV.Cells[3, Row];
-        Ymds := StringGridCSV.Cells[1, Row];
-        Bikou := StringGridCSV.Cells[22, Row];
-        Jisekibikou := StringGridCSV.Cells[22, Row];
         Tourokuymd := Now;
-        MaxTime := GetMaxTime(StringGridCSV.Cells[11, Row], StringGridCSV.Cells[17, Row]);
-        FormattedDateTime := FormatDateTimeStr(Ymds, MaxTime);
 
-        // Validate and convert numerical values
-        if not TryStrToInt(StringGridCSV.Cells[13, Row], Value1) then Value1 := 0;
-        if not TryStrToInt(StringGridCSV.Cells[20, Row], Value2) then Value2 := 0;
-        JhValue := Value1 + Value2;
+        //MANAGE Ymde DateEnd Just Date no time
+        try
+          // Ymde date end
+          if StringGridCSV.Cells[MachDate, Row] = '' then
+          begin
+            if TryStrToFloat(StringGridCSV.Cells[Start, Row], StartTime) and TryStrToFloat(StringGridCSV.Cells[Finish, Row], EndTime) then
+            begin
+              if EndTime < StartTime then
+              begin
+                if TryStrToDate(StringGridCSV.Cells[Date, Row], ResultDate) then
+                begin
+                  ResultDate := ResultDate + 1; // Add 1 day
+                  Ymde := FormatDateTime('dd/mm/yyyy', ResultDate);
+                end
+                else
+                begin
+                  Ymde := 'Invalid Date'; // Handle invalid date in cell [2, Row]
+                end;
+              end
+              else
+              begin
+                Ymde := StringGridCSV.Cells[Date, Row];
+              end;
+            end;
+          end
+          else
+          begin
+            Ymde := StringGridCSV.Cells[MachDate, Row];
+          end;
+        //MANAGE Ymde TIMEEND
+        time := GetMaxTime(StringGridCSV.Cells[Finish, Row], StringGridCSV.Cells[MachFinish, Row]);
+        //MANAGE YMDE DATETIME
+        FormattedDateEnd := FormatDateTimeStr(Ymde, time); // lasted ymde
+      except
+        on E: Exception do
+        begin
+          // Handle any exceptions that occur during date processing
+            WriteLog('Error: Ymde is missing in row ' + IntToStr(Row));
+            UpdateResultColumn(Row, 'NG');
+            UpdateErrorColumn(Row, 'Ymde : '+E.Message); // Update the error column with the error message
+            Continue; // Skip to the next iteration of the loop
+        end;
+      end;
+        //Cost Unit Price
+          // Get yujintanka value from tantomst
+          InsertQuery.SQL.Text := 'SELECT tanka1 FROM tantomst WHERE tantocd = :tantocd';
+          InsertQuery.ParamByName('tantocd').AsString := Tantocd;
+          InsertQuery.Open;
+          YujintankaValue := InsertQuery.FieldByName('tanka1').AsFloat;
+          InsertQuery.Close;
+          // Get Kikaitanka value from the kikaimst table using kikaicd
+          InsertQuery.SQL.Text := 'SELECT KIKAITANKA FROM kikaimst WHERE kikaicd = :MachValue';
+          InsertQuery.ParamByName('MachValue').AsString := MachValue;
+          InsertQuery.Open;
+          KikaitankaValue := InsertQuery.FieldByName('KIKAITANKA').AsFloat;
+          InsertQuery.Close;
+          // Get koteitanka value from the kouteigmst table using Gkoteicd
+          InsertQuery.SQL.Text := 'SELECT GTANKA FROM KOUTEIGMST WHERE Gkoteicd = :Gkoteicd';
+          InsertQuery.ParamByName('Gkoteicd').AsString := Gkoteicd;
+          InsertQuery.Open;
+          KoteitankaValue := InsertQuery.FieldByName('GTANKA').AsFloat;
+          InsertQuery.Close;
+          // Retrieve GHIMOKUCD from KOUTEIGMST
+          InsertQuery.SQL.Text := 'SELECT GHIMOKUCD FROM KOUTEIGMST WHERE Gkoteicd = :Gkoteicd';
+          InsertQuery.ParamByName('Gkoteicd').AsString := Gkoteicd;
+          InsertQuery.Open;
+          GHIMOKUCDValue := InsertQuery.FieldByName('GHIMOKUCD').AsInteger;
+          InsertQuery.Close;
+          // Calculate YujinkinValue, MujinkinValue, and KinsumValue
+          YujinkinValue := MinMan * YujintankaValue / 60;
+          MujinkinValue := MinMach * KikaitankaValue / 60;
+          KinsumValue := YujinkinValue + MujinkinValue;
 
-        // Calculate additional fields
-        Sagyoh := Value1 + 0 + 0;
-        Kikaikadoh := Value1 + Value2 + 0 + 0;
-
-        // Get yujintanka value from tantomst
-        InsertQuery.SQL.Text := 'SELECT tanka1 FROM tantomst WHERE tantocd = :tantocd';
-        InsertQuery.ParamByName('tantocd').AsString := Tantocd;
-        InsertQuery.Open;
-        YujintankaValue := InsertQuery.FieldByName('tanka1').AsFloat;
-        InsertQuery.Close;
-
-        // Get Kikaitanka value from the kikaimst table using kikaicd
-        InsertQuery.SQL.Text := 'SELECT KIKAITANKA FROM kikaimst WHERE kikaicd = :kikaicd';
-        InsertQuery.ParamByName('kikaicd').AsString := Kikaicd;
-        InsertQuery.Open;
-        KikaitankaValue := InsertQuery.FieldByName('KIKAITANKA').AsFloat;
-        InsertQuery.Close;
-
-        // Get koteitanka value from the kouteigmst table using Gkoteicd
-        InsertQuery.SQL.Text := 'SELECT GTANKA FROM KOUTEIGMST WHERE Gkoteicd = :Gkoteicd';
-        InsertQuery.ParamByName('Gkoteicd').AsString := Gkoteicd;
-        InsertQuery.Open;
-        KoteitankaValue := InsertQuery.FieldByName('GTANKA').AsFloat;
-        InsertQuery.Close;
-
-        // Retrieve GHIMOKUCD from KOUTEIGMST
-        InsertQuery.SQL.Text := 'SELECT GHIMOKUCD FROM KOUTEIGMST WHERE Gkoteicd = :Gkoteicd';
-        InsertQuery.ParamByName('Gkoteicd').AsString := Gkoteicd;
-        InsertQuery.Open;
-        GHIMOKUCDValue := InsertQuery.FieldByName('GHIMOKUCD').AsInteger;
-        InsertQuery.Close;
-
-        // Get the maximum JDSEQNO from the JISEKIDATA table
-        InsertQuery.SQL.Text := 'SELECT MAX(JDSEQNO) AS MaxJDSEQNO FROM JISEKIDATA';
-        InsertQuery.Open;
-        MaxJDSEQNO := InsertQuery.FieldByName('MaxJDSEQNO').AsInteger;
-        InsertQuery.Close;
-
-        // Increment the maximum JDSEQNO by 1 to get the new JDSEQNO
-        NewJDSEQNO := MaxJDSEQNO + 1;
-
-        // Calculate YujinkinValue, MujinkinValue, and KinsumValue
-        YujinkinValue := Value1 * YujintankaValue / 60;
-        MujinkinValue := Value2 * KikaitankaValue / 60;
-        KinsumValue := YujinkinValue + MujinkinValue;
-
+        //GET PRIMARY KEY
+          // Get the maximum JDSEQNO from the JISEKIDATA table
+          InsertQuery.SQL.Text := 'SELECT MAX(JDSEQNO) AS MaxJDSEQNO FROM JISEKIDATA';
+          InsertQuery.Open;
+          MaxJDSEQNO := InsertQuery.FieldByName('MaxJDSEQNO').AsInteger;
+          InsertQuery.Close;
+          // Increment the maximum JDSEQNO by 1 to get the new JDSEQNO
+          NewJDSEQNO := MaxJDSEQNO + 1;
+        //Check Error Insertion
+        try
         // Construct and execute the SQL statement
         SQL := 'INSERT INTO JISEKIDATA (JDSEQNO, seizono, bunm, bucd, gkoteicd, kikaicd, jigucd, tantocd, ymds, KMSEQNO, jh, ' +
                'jmaedanh, jatodanh, jkbn, jyujinh, jmujinh, yujintanka, kikaitanka, koteitanka, GHIMOKUCD, yujinkin, ' +
                'mujinkin, kinsum, bikou, tourokuymd, sagyoh, kikaikadoh, inptantocd, inpymd, jisekibikou, inppcname, ' +
-               'inpmacaddress, inpusername, inpexename, inpversion) ' +
+               'inpmacaddress, inpusername, inpexename, inpversion,ymde) ' +
+
                'VALUES (:NewJDSEQNO, :SeizonoValue, :BunmValue, :BucdValue, :Gkoteicd, :Kikaicd, :Jigucd, :Tantocd, ' +
-               'TO_DATE(:FormattedDateTime, ''YYYY-MM-DD HH24:MI:SS''), 1, :JhValue, 0, 0, 4, :Value1, :Value2, ' +
+               'TO_DATE(:FormattedDateTime, ''YYYY-MM-DD HH24:MI:SS''), 1, :JhValue, 0, 0, 4, :MinMan, :MinMach, ' +
                ':YujintankaValue, :KikaitankaValue, :KoteitankaValue, :GHIMOKUCDValue, :YujinkinValue, :MujinkinValue, ' +
                ':KinsumValue, :Bikou, :Tourokuymd, :Sagyoh, :Kikaikadoh, :InptantocdValue, :Inpymd, :Jisekibikou, ' +
-               ':Inppcname, :Inpmacaddress, :Inpusername, :Inpexename, :Inpversion)';
+               ':Inppcname, :Inpmacaddress, :Inpusername, :Inpexename, :Inpversion,TO_DATE(:FormattedDateEnd, ''YYYY-MM-DD HH24:MI:SS''))';
 
         InsertQuery.SQL.Text := SQL;
         InsertQuery.ParamByName('NewJDSEQNO').AsInteger := NewJDSEQNO;
@@ -772,8 +1156,8 @@ begin
         InsertQuery.ParamByName('Tantocd').AsString := Tantocd;
         InsertQuery.ParamByName('FormattedDateTime').AsString := FormattedDateTime;
         InsertQuery.ParamByName('JhValue').AsInteger := JhValue;
-        InsertQuery.ParamByName('Value1').AsInteger := Value1;
-        InsertQuery.ParamByName('Value2').AsInteger := Value2;
+        InsertQuery.ParamByName('MinMan').AsInteger := MinMan;
+        InsertQuery.ParamByName('MinMach').AsInteger := MinMach;
         InsertQuery.ParamByName('YujintankaValue').AsFloat := YujintankaValue;
         InsertQuery.ParamByName('KikaitankaValue').AsFloat := KikaitankaValue;
         InsertQuery.ParamByName('KoteitankaValue').AsFloat := KoteitankaValue;
@@ -793,29 +1177,171 @@ begin
         InsertQuery.ParamByName('Inpusername').AsString := WinUserName;
         InsertQuery.ParamByName('Inpexename').AsString := ExeName;
         InsertQuery.ParamByName('Inpversion').AsString := ExeVersion;
-
+        InsertQuery.ParamByName('FormattedDateEnd').AsString := FormattedDateEnd;
         InsertQuery.Execute;
 
-        // Update the "Result" column with "Imported"
-        UpdateResultColumn(Row, 'Imported');
+        ProgressBar1.Position := Row;
+        UpdateErrorColumn(Row, 'ID'+Inttostr(NewJDSEQNO) );
+        except
+            on E: Exception do
+            begin
+              // Log the error and update the "Result" column with "NG"
+              WriteLog('Error SQL Insertion ' + IntToStr(Row) + ': ' + E.Message);
+              UpdateResultColumn(Row, 'NG');
+              UpdateErrorColumn(Row, 'Insertion : '+E.Message); // Update the error column with the error message
+              continue;
+            end;
+          end;
+
       except
         on E: Exception do
         begin
           // Log the error and update the "Result" column with "NG"
           WriteLog('Error importing row ' + IntToStr(Row) + ': ' + E.Message);
           UpdateResultColumn(Row, 'NG');
+          UpdateErrorColumn(Row, 'General : '+E.Message); // Update the error column with the error message
+          continue;
         end;
       end;
     end;
-
-    ShowMessage('Data import process completed: ' + IntToStr(NewJDSEQNO));
-
     // Commit the transaction
     UniConnection.Commit;
   finally
     InsertQuery.Free;
+    Managefile;
+    ProgressBar1.Position := 0; // Reset the progress bar
   end;
 end;
+
+function TForm1.IsMaxTime(CellValue1, CellValue2: string): string;
+var
+  Time1, Time2: TDateTime;
+begin
+  Time1 := EncodeTime(StrToInt(Copy(CellValue1, 1, 2)), StrToInt(Copy(CellValue1, 4, 2)), 0, 0);
+  Time2 := EncodeTime(StrToInt(Copy(CellValue2, 1, 2)), StrToInt(Copy(CellValue2, 4, 2)), 0, 0);
+
+  if Time1 > Time2 then
+    Result := FormatDateTime('hh.nn', Time1)
+  else
+    Result := FormatDateTime('hh.nn', Time2);
+end;
+
+function TForm1.MaxDateTime(const A, B: TDateTime): TDateTime;
+begin
+  if A > B then
+    Result := A
+  else
+    Result := B;
+end;
+
+function TForm1.MinDateTime(const A, B: TDateTime): TDateTime;
+begin
+  if A < B then
+    Result := A
+  else
+    Result := B;
+end;
+
+function TForm1.CalculateWorkingTime(StartTimeStr, EndTimeStr, Shift: string): String;
+var
+  StartTime, EndTime, BreakStart, BreakEnd, WorkingTime, OverlapTime: Double;
+  BreakTimes: array[0..9] of Double;
+  i: Integer;
+  TotalMinutes: Double;
+  CrossesMidnight: Boolean;
+begin
+  try
+    // Convert string times to float
+    StartTime := StrToInt(Copy(StartTimeStr, 1, 2)) * 60 + StrToInt(Copy(StartTimeStr, 4, 2));
+    EndTime := StrToInt(Copy(EndTimeStr, 1, 2)) * 60 + StrToInt(Copy(EndTimeStr, 4, 2));
+
+    // Check if the time range crosses midnight
+    CrossesMidnight := EndTime < StartTime;
+    if CrossesMidnight then
+    begin
+      // Add 24 hours (in minutes) to the end time if it crosses midnight
+      EndTime := EndTime + 24 * 60;
+    end;
+
+    // Define break times based on the shift (in minutes)
+    if Shift = 'D' then
+    begin
+      BreakTimes[0] := 12 * 60 + 10;
+      BreakTimes[1] := 13 * 60 + 10;
+      BreakTimes[2] := 17 * 60;
+      BreakTimes[3] := 17 * 60 + 30;
+      BreakTimes[4] := 21 * 60 + 10;
+      BreakTimes[5] := 21 * 60 + 30;
+      BreakTimes[6] := 25 * 60 + 30; // Next day
+      BreakTimes[7] := 25 * 60 + 50; // Next day
+      BreakTimes[8] := 29 * 60 + 50; // Next day
+      BreakTimes[9] := 30 * 60 + 10; // Next day
+    end
+    else    // Night shift
+    begin
+      BreakTimes[0] := 0;
+      BreakTimes[1] := 1 * 60;
+      BreakTimes[2] := 5 * 60;
+      BreakTimes[3] := 5 * 60 + 20;
+      BreakTimes[4] := 9 * 60;
+      BreakTimes[5] := 9 * 60 + 20;
+      BreakTimes[6] := 13 * 60 + 20;
+      BreakTimes[7] := 13 * 60 + 40;
+      BreakTimes[8] := 17 * 60 + 40;
+      BreakTimes[9] := 18 * 60;
+    end;
+
+    // Calculate the working time excluding breaks
+    WorkingTime := EndTime - StartTime;
+
+    // Calculate and subtract overlap with break times
+    for i := Low(BreakTimes) to High(BreakTimes) div 2 do
+    begin
+      BreakStart := BreakTimes[i * 2];
+      BreakEnd := BreakTimes[i * 2 + 1];
+
+      // Adjust break times for cases where they cross midnight
+      if BreakEnd < BreakStart then
+        BreakEnd := BreakEnd + 24 * 60; // Add 24 hours (in minutes)
+
+      // Calculate overlap with working time
+      if (BreakStart < EndTime) and (BreakEnd > StartTime) then
+      begin
+        OverlapTime := MinFloat(EndTime, BreakEnd) - MaxFloat(StartTime, BreakStart);
+        WorkingTime := WorkingTime - OverlapTime;
+      end;
+    end;
+
+    // Convert working time to minutes
+    TotalMinutes := Round(WorkingTime);
+    Result := FloatToStr(TotalMinutes);
+  except
+    on E: Exception do
+    begin
+      // Log the error and return an empty string
+      WriteLog('Error calculating working time: ' + E.Message);
+      Result := '';
+    end;
+  end;
+
+end;
+
+function TForm1.MaxFloat(const A, B: Double): Double;
+begin
+  if A > B then
+    Result := A
+  else
+    Result := B;
+end;
+
+function TForm1.MinFloat(const A, B: Double): Double;
+begin
+  if A < B then
+    Result := A
+  else
+    Result := B;
+end;
+
 
 function TForm1.GetTimeInMinutes(const TimeStr: string): Integer;
 var
@@ -828,6 +1354,11 @@ begin
     Min := StrToIntDef(Copy(TimeStr, Pos('.', TimeStr) + 1, Length(TimeStr)), 0);
     Result := Hour * 60 + Min;
   end;
+end;
+
+procedure TForm1.Help2Click(Sender: TObject);
+begin
+  ShowMessage('CIM : cim_th_mail@cim.co.jp')
 end;
 
 function TForm1.GetMaxTime(const Time1, Time2: string): string;
@@ -905,6 +1436,26 @@ begin
   StringGridCSV.Cells[0, Row] := ResultText;
 end;
 
+procedure TForm1.UpdateErrorColumn(Row: Integer; ErrorMessage: string);
+var
+  i: Integer;
+begin
+  if StringGridCSV.ColCount <= 28 then // Check if the error column (25) exists
+  begin
+    StringGridCSV.ColCount := 29; // Ensure there are at least 26 columns
+  end;
+
+  // Set the width of all columns except column 25 to 50
+  for i := 0 to StringGridCSV.ColCount - 1 do
+  begin
+    if i <> 29 then
+      StringGridCSV.ColWidths[i] := 50;
+  end;
+
+  // Update the error message in column 25
+  StringGridCSV.Cells[Status, Row] := StringGridCSV.Cells[Status, Row]+',' + ErrorMessage;
+  StringGridCSV.Anchors := [akLeft, akTop, akRight, akBottom];
+end;
 
 procedure TForm1.LoadCSVFilesIntoGrid(const FolderPath: string);
 var
@@ -970,6 +1521,16 @@ begin
     end;
   end;
 end;
+
+procedure TForm1.ClearStringGrid(Grid: TStringGrid);
+var
+  Col, Row: Integer;
+begin
+  for Col := 0 to Grid.ColCount - 1 do
+    for Row := 1 to Grid.RowCount - 1 do // Start from 1 to keep the headers
+      Grid.Cells[Col, Row] := '';
+end;
+
 
 procedure TForm1.StringGridCSVDrawCell(Sender: TObject; ACol, ARow: Integer; Rect: TRect; State: TGridDrawState);
     var
@@ -1051,41 +1612,48 @@ begin
   Grid.OnDrawCell := StringGridCSVDrawCell;
 
   // Set number of columns
-  Grid.ColCount := 24;
+  Grid.ColCount := 29;
   Grid.RowCount := 1;
+  SetIndex;
 
 
   for i := 1 to Grid.ColCount - 1 do
   begin
-    Grid.ColWidths[i] := 70;
+    Grid.ColWidths[i] := 50;
     Grid.ColAlignments[i] := taCenter;
+    Grid.ColWidths[Status] := 250;
   end;
 
   // Set the headers
-  Grid.Cells[0, 0] := 'Result';
-  Grid.Cells[1, 0] := 'Date';
-  Grid.Cells[2, 0] := 'Name';
-  Grid.Cells[3, 0] := 'Employee Code';
-  Grid.Cells[4, 0] := 'Code D';
-  Grid.Cells[5, 0] := 'Mold Code';
-  Grid.Cells[6, 0] := 'Model';
-  Grid.Cells[7, 0] := 'Lamp Name';
-  Grid.Cells[8, 0] := 'Part Name';
-  Grid.Cells[9, 0] := 'Modify Job No.';
-  Grid.Cells[10, 0] := 'Part Code';
-  Grid.Cells[11, 0] := 'Start';
-  Grid.Cells[12, 0] := 'Finish';
-  Grid.Cells[13, 0] := 'Min';
-  Grid.Cells[14, 0] := 'M/C Code';
-  Grid.Cells[15, 0] := 'Mach.master';
-  Grid.Cells[16, 0] := 'Date';
-  Grid.Cells[17, 0] := 'Strat';
-  Grid.Cells[18, 0] := 'Date';
-  Grid.Cells[19, 0] := 'Finish';
-  Grid.Cells[20, 0] := 'Min';
-  Grid.Cells[21, 0] := 'ATC';
-  Grid.Cells[22, 0] := 'Remark';
-  Grid.Cells[23, 0] := 'Work Shift';
+  Grid.Cells[Result, 0] := 'Result';
+  Grid.Cells[Shift_n, 0] := 'Shift';
+  Grid.Cells[Date, 0] := 'Date';
+  Grid.Cells[WorkerName, 0] := 'Worker Name';
+  Grid.Cells[EmployeeCode, 0] := 'Employee Code';
+  Grid.Cells[CodeD, 0] := 'Code D';
+  Grid.Cells[CostProcessName, 0] := 'Cost Process Name';
+  Grid.Cells[MoldCode, 0] := 'Mold Code';
+  Grid.Cells[Model, 0] := 'Model';
+  Grid.Cells[LampName, 0] := 'Lamp Name';
+  Grid.Cells[PartName, 0] := 'Part Name';
+  Grid.Cells[ModifyJobNo, 0] := 'Modify Job No.';
+  Grid.Cells[PartCode, 0] := 'Part Code';
+  Grid.Cells[PartMaster, 0] := 'Part Master';
+  Grid.Cells[Start, 0] := 'Start';
+  Grid.Cells[Finish, 0] := 'Finish';
+  Grid.Cells[Min, 0] := 'Min';
+  Grid.Cells[MCCode, 0] := 'M/C Code';
+  Grid.Cells[Machmaster, 0] := 'Mach.master';
+  Grid.Cells[MachStart, 0] := 'Start';
+  Grid.Cells[MachDate, 0] := 'Date';
+  Grid.Cells[MachFinish, 0] := 'Finish';
+  Grid.Cells[MachMin, 0] := 'Min';
+  Grid.Cells[ATC, 0] := 'ATC';
+  Grid.Cells[Remark, 0] := 'Remark';
+  Grid.Cells[Status, 0] := 'Status';
+  Grid.Cells[CodeA, 0] := 'CodeA';
+  Grid.Cells[CodeB, 0] := 'CodeB';
+  Grid.Cells[CodeC, 0] := 'CodeC';
   // Set column widths for result column
   Grid.ColWidths[0] := 150;
   Grid.ColAlignments[0] := taCenter;
@@ -1101,6 +1669,119 @@ begin
 
 end;
 
+procedure TForm1.SetIndex;
+begin
+  Result := 0;
+  Shift_n := 1;
+  Date := 2;
+  WorkerName := 3;
+  EmployeeCode := 4;
+  CodeD := 5;
+  CostProcessName := 6;
+  MoldCode := 7;
+  Model := 8;
+  LampName := 9;
+  PartName := 10;
+  ModifyJobNo := 11;
+  PartCode := 12;
+  PartMaster := 13;
+  Start := 14;
+  Finish := 15;
+  Min := 16;
+  MCCode := 17;
+  Machmaster := 18;
+  MachStart := 19;
+  MachDate := 20;
+  MachFinish := 21;
+  MachMin := 22;
+  ATC := 23;
+  Remark := 24;
+  Status :=28;
+  CodeA := 26;
+  CodeB := 27;
+  CodeC :=25;
+
+end;
+
+procedure TForm1.AdjustLastColumnWidth(Grid: TStringGrid);
+var
+  TotalWidth, OtherColsWidth, i: Integer;
+begin
+  OtherColsWidth := 0;
+  for i := 0 to Grid.ColCount - 2 do // Exclude the last column
+    Inc(OtherColsWidth, Grid.ColWidths[i]);
+
+  TotalWidth := Grid.ClientWidth - OtherColsWidth - Grid.GridLineWidth * (Grid.ColCount - 1);
+  if TotalWidth > 0 then
+    Grid.ColWidths[Grid.ColCount - 1] := TotalWidth;
+end;
+
+procedure TForm1.FormResize(Sender: TObject);
+begin
+  AdjustLastColumnWidth(StringGridCSV);
+end;
+
+function TForm1.IsValidTimeFormat(TimeStr: string): Boolean;
+var
+  RegEx: TRegEx;
+  Match: TMatch;
+  Hours, Minutes: Integer;
+begin
+  Result := False;
+  RegEx := TRegEx.Create('^(?<hours>\d{2})\.(?<minutes>\d{2})$');
+  Match := RegEx.Match(TimeStr);
+
+  if Match.Success then
+  begin
+    if TryStrToInt(Match.Groups['hours'].Value, Hours) and
+       TryStrToInt(Match.Groups['minutes'].Value, Minutes) then
+    begin
+      Result := (Hours >= 0) and (Hours <= 23) and (Minutes >= 0) and (Minutes <= 59);
+    end;
+  end;
+end;
+
+procedure MoveAllFiles;
+var
+  Files: TStringDynArray;
+  FileName, NewFileName, DateTimeStr: string;
+begin
+  // Get all files in the source directory
+  Files := TDirectory.GetFiles(FolderPath);
+
+  // Format the current date and time as a string
+  DateTimeStr := FormatDateTime('yyyy-mm-dd_hhnnss', Now);
+  if HasLogFile = '1' then
+  begin
+         if Operation = 'Move' then
+          begin
+            // Ensure the destination directory exists
+            if not TDirectory.Exists(MovePath) then
+              TDirectory.CreateDirectory(MovePath);
+
+            // Move each file to the destination directory with the date and time appended to the filename
+            for FileName in Files do
+            begin
+              NewFileName := TPath.Combine(MovePath, TPath.GetFileNameWithoutExtension(FileName) + '_' + DateTimeStr + TPath.GetExtension(FileName));
+              TFile.Move(FileName, NewFileName);
+            end;
+          end
+          else
+          begin
+            // MovePath is empty, delete all files in the source directory
+            for FileName in Files do
+              TFile.Delete(FileName);
+          end;
+  end;
+
+
+end;
+
+
+procedure TForm1.file2Click(Sender: TObject);
+begin
+  halt;
+end;
 
 end.
 

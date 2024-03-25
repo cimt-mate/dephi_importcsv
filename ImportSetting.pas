@@ -5,7 +5,8 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics, IniFiles,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.Buttons,
-  System.ImageList, Vcl.ImgList;
+  System.ImageList, Vcl.ImgList,
+  Vcl.Themes, Vcl.Styles;
 
 type
   TForm2 = class(TForm)
@@ -277,6 +278,7 @@ begin
   end;
 
 end;
+
 
 procedure TForm2.RadioButtonDeleteClick(Sender: TObject);
 begin
