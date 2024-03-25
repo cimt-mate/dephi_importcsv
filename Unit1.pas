@@ -8,7 +8,7 @@ uses
   Vcl.ComCtrls, Vcl.ExtCtrls, Uni, UniProvider, OracleUniProvider, MemDS, Vcl.Grids, Vcl.DBGrids,
   DBAccess, Vcl.ExtDlgs,System.IniFiles ,DateUtils, System.ImageList,ImportSetting,
   Vcl.ImgList, Vcl.Buttons, Vcl.Menus, Winapi.Winsock   , System.Types  ,System.IOUtils,System.StrUtils
-  ,IpHlpApi,IpTypes, Vcl.ButtonGroup, Vcl.ToolWin ,System.RegularExpressions
+  ,IpHlpApi,IpTypes, Vcl.ButtonGroup, Vcl.ToolWin ,System.RegularExpressions,Math
 
 ;
 
@@ -80,6 +80,7 @@ type
     procedure UpdateErrorColumn(Row: Integer; ErrorMessage: string);
     procedure ClearStringGrid(Grid: TStringGrid);
     function IsValidTimeFormat(TimeStr: string): Boolean;
+    procedure LogErrorRowToCSV(Row: Integer; ErrorMessage: string);
   end;
 
 var
@@ -88,7 +89,7 @@ var
   ModifyJobNo,PartCode,PartMaster,Start,Finish,Min,MCCode,Machmaster,MachStart,MachDate,MachFinish,MachMin,ATC,Remark,Status : Integer;
   CodeA,CodeB,CodeC : Integer;
   MovePath : String;
-  Operation,HasErrorFileChoice,HasLogFile,ErrorPath,FolderPath : String;
+  Operation,HasErrorFileChoice,HasLogFile,ErrorPath,FolderPath,Error,PathErrorCSV : String;
   CurrentDateTime: TDateTime;
 implementation
 
@@ -187,6 +188,8 @@ begin
     MovePath :=  IniFile.ReadString('Settings', 'MovePath', '');
     Operation :=  IniFile.ReadString('Settings', 'Operation', '');
     HasLogFile :=  IniFile.ReadString('Settings', 'HasLogFile', '');
+    Error := IniFile.ReadString('Settings', 'Error', '');
+    PathErrorCSV := IniFile.ReadString('Settings', 'PathErrorCSV', '');
     HasErrorFileChoice :=  IniFile.ReadString('Settings', 'HasErrorFile', '');
   finally
     IniFile.Free;
@@ -465,6 +468,7 @@ begin
         else
         begin
           // MovePath is empty, delete all files in the source directory
+           Files := TDirectory.GetFiles(FolderPath);
             for FileName in Files do
               TFile.Delete(FileName);
         end;
@@ -738,6 +742,7 @@ begin
             begin
               WriteLog('INI file not found: ' + IniFileName);
               UpdateErrorColumn(Row, 'INI file not found');
+              LogErrorRowToCSV(Row,'INI file not found: ' + IniFileName);
               Continue; // Skip to the next iteration of the loop
             end;
             IniFile := TIniFile.Create(IniFileName);
@@ -747,6 +752,7 @@ begin
               begin
                 WriteLog('CD2 value not found or INI file not read correctly.');
                 UpdateErrorColumn(Row, 'CD2 value not found');
+                LogErrorRowToCSV(Row,'CD2 value not found or INI file not read correctly.');
                 Continue; // Skip to the next iteration of the loop
               end;
             finally
@@ -759,6 +765,7 @@ begin
             begin
               WriteLog('Failed to get computer name.');
               UpdateErrorColumn(Row, 'Failed to get computer name');
+              LogErrorRowToCSV(Row,'Failed to get computer name.');
               Continue; // Skip to the next iteration of the loop
             end;
             CompName := Buffer;
@@ -768,6 +775,7 @@ begin
             begin
               WriteLog('Failed to get MAC address.');
               UpdateErrorColumn(Row, 'Failed to get MAC address');
+              LogErrorRowToCSV(Row,'Failed to get MAC address.');
               Continue; // Skip to the next iteration of the loop
             end;
             // Get Windows Username
@@ -776,6 +784,7 @@ begin
             begin
               WriteLog('Failed to get Windows username.');
               UpdateErrorColumn(Row, 'Failed to get Windows username');
+              LogErrorRowToCSV(Row,'Failed to get Windows username.');
               Continue; // Skip to the next iteration of the loop
             end;
             // Get Executable Name
@@ -784,6 +793,7 @@ begin
             begin
               WriteLog('Failed to get executable name.');
               UpdateErrorColumn(Row, 'Failed to get executable name');
+              LogErrorRowToCSV(Row,'Failed to get executable name.');
               Continue; // Skip to the next iteration of the loop
             end;
             // Get Executable Version
@@ -792,6 +802,7 @@ begin
             begin
               WriteLog('Failed to get executable version.');
               UpdateErrorColumn(Row, 'Failed to get executable version');
+              LogErrorRowToCSV(Row,'Failed to get executable version.');
               Continue; // Skip to the next iteration of the loop
             end;
 
@@ -807,7 +818,9 @@ begin
          DateStr := StringGridCSV.Cells[Date, Row]; // 'Date' should be replaced with the actual index of your date column
          if (DateStr = '') and not TryStrToDate(StringGridCSV.Cells[Date, Row], DateValue) then
             begin
+              WriteLog(IntToStr(Row) + ': Invalid or missing date format');
               UpdateErrorColumn(Row, 'Invalid or missing date format');
+              LogErrorRowToCSV(Row,'Invalid or missing date format');
               UpdateResultColumn(Row, 'NG');
               // You can also log the error, update a status column, etc.
               Continue; // Skip to the next iteration of the loop
@@ -821,7 +834,9 @@ begin
          InsertQuery.Open;
          if (Tantocd <> '') and (InsertQuery.FieldByName('Count').AsInteger <= 0) then
             begin
+              WriteLog(IntToStr(Row) + ': Employee Code is Invalid');
               UpdateErrorColumn(Row, 'Employee Code is Invalid');
+              LogErrorRowToCSV(Row,'Employee Code is Invalid');
               UpdateResultColumn(Row, 'NG');
               Continue; // Skip to the next iteration of the loop
             end;
@@ -829,7 +844,9 @@ begin
             on E: Exception do
             begin
               // Handle exceptions such as connectivity issues, SQL syntax errors, etc.
+              WriteLog(IntToStr(Row) + ': WorkerCD SQL is Invalid');
               UpdateErrorColumn(Row, 'WorkerCD SQL is Invalid');
+              LogErrorRowToCSV(Row,'WorkerCD SQL is Invalid');
               UpdateErrorColumn(Row, E.Message);
               UpdateResultColumn(Row, 'NG');
               Continue; // Skip to the next iteration of the loop
@@ -844,7 +861,9 @@ begin
          InsertQuery.Open;
          if (Gkoteicd <> '') and (InsertQuery.FieldByName('Count').AsInteger <= 0) then
             begin
+              WriteLog(IntToStr(Row) + ': Code D is Invalid');
               UpdateErrorColumn(Row, 'Code D is Invalid');
+              LogErrorRowToCSV(Row,'Code D is Invalid');
               UpdateResultColumn(Row, 'NG');
               Continue; // Skip to the next iteration of the loop
             end;
@@ -852,8 +871,10 @@ begin
             on E: Exception do
             begin
               // Handle exceptions such as connectivity issues, SQL syntax errors, etc.
+              WriteLog(IntToStr(Row) + ': Cost process CD SQL is Invalid');
               UpdateErrorColumn(Row, 'Cost process CD SQL is Invalid');
               UpdateErrorColumn(Row, E.Message);
+              LogErrorRowToCSV(Row,'Cost process CD SQL is Invalid');
               UpdateResultColumn(Row, 'NG');
               Continue; // Skip to the next iteration of the loop
             end;
@@ -866,16 +887,20 @@ begin
          InsertQuery.Open;
          if (SeizonoValue <> '') and (InsertQuery.FieldByName('Count').AsInteger <= 0) then
             begin
+              WriteLog(IntToStr(Row) + ': Modify Job No is Invalid');
               UpdateErrorColumn(Row, 'Modify Job No is Invalid');
+              LogErrorRowToCSV(Row,'Modify Job No is Invalid');
               UpdateResultColumn(Row, 'NG');
-              Continue; // Skip to the next iteration of the loop
+              Continue; // Skip to the next iteration of the loop          b
             end;
 
          except
             on E: Exception do
             begin
               // Handle exceptions such as connectivity issues, SQL syntax errors, etc.
+              WriteLog(IntToStr(Row) + ': ModifyJobNo SQL is Invalid');
               UpdateErrorColumn(Row, 'ModifyJobNo SQL is Invalid');
+              LogErrorRowToCSV(Row,'ModifyJobNo SQL is Invalid');
               UpdateErrorColumn(Row, E.Message);
               UpdateResultColumn(Row, 'NG');
               Continue; // Skip to the next iteration of the loop
@@ -891,7 +916,9 @@ begin
            InsertQuery.Open;
            if (InsertQuery.FieldByName('Count').AsInteger <= 0) then
               begin
+              WriteLog(IntToStr(Row) + ': PartCode is Invalid');
                 UpdateErrorColumn(Row, 'PartCode is Invalid');
+                LogErrorRowToCSV(Row,'PartCode is Invalid');
                 UpdateResultColumn(Row, 'NG');
                 Continue; // Skip to the next iteration of the loop
               end;
@@ -900,8 +927,10 @@ begin
             on E: Exception do
             begin
               // Handle exceptions such as connectivity issues, SQL syntax errors, etc.
+              WriteLog(IntToStr(Row) + ': PART SQL is Invalid');
               UpdateErrorColumn(Row, 'PART SQL is Invalid');
               UpdateErrorColumn(Row, E.Message);
+              LogErrorRowToCSV(Row,'PART SQL is Invalid');
               UpdateResultColumn(Row, 'NG');
               Continue; // Skip to the next iteration of the loop
             end;
@@ -924,32 +953,41 @@ begin
          begin
              if not (IsValidTimeFormat(TimeStrMach)) then
              begin
+              WriteLog(IntToStr(Row) + ': TimeMachStart is Invalid');
               UpdateErrorColumn(Row, 'TimeMachStart is Invalid');
+              LogErrorRowToCSV(Row,'TimeMachStart is Invalid');
               UpdateResultColumn(Row, 'NG');
               Continue; // Skip to the next iteration of the loop
              end;
 
              if not IsValidTimeFormat(TimeFinishMach) then
              begin
+              WriteLog(IntToStr(Row) + ': TimeMachFinish is Invalid');
               UpdateErrorColumn(Row, 'TimeMachFinish is Invalid');
+              LogErrorRowToCSV(Row,'TimeMachFinish is Invalid');
               UpdateResultColumn(Row, 'NG');
               Continue; // Skip to the next iteration of the loop
              end;
 
              if (DateMach = '') and not TryStrToDate(StringGridCSV.Cells[MachDate, Row], DateMachineValue ) then
              begin
-             UpdateErrorColumn(Row, 'MachDate is null');
+              WriteLog(IntToStr(Row) + ': MachDate is null');
+              UpdateErrorColumn(Row, 'MachDate is null');
+              LogErrorRowToCSV(Row,'MachDate is null');
               UpdateResultColumn(Row, 'NG');
               Continue; // Skip to the next iteration of the loop
              end;
 
              if MinMach = 0  then
              begin
+              WriteLog(IntToStr(Row) + ': MinMach is null');
               UpdateErrorColumn(Row, 'MinMach is null');
+              LogErrorRowToCSV(Row,'MinMach is null');
               UpdateResultColumn(Row, 'NG');
               Continue; // Skip to the next iteration of the loop
              end;
              bikou := StringGridCSV.Cells[MachMin, Row] ;
+             MaxTime := GetMaxTime(StringGridCSV.Cells[Start, Row], StringGridCSV.Cells[MachStart, Row]);
              FormattedDateTime := FormatDateTimeStr(Ymds, MaxTime);  //lasted ymds
          end
          //Worker Manned
@@ -957,20 +995,26 @@ begin
          begin
              if not IsValidTimeFormat(TimeStr) then
              begin
+              WriteLog(IntToStr(Row) + ': TimeStart is Invalid');
               UpdateErrorColumn(Row, 'TimeStart is Invalid');
+              LogErrorRowToCSV(Row,'TimeStart is Invalid');
               UpdateResultColumn(Row, 'NG');
               Continue; // Skip to the next iteration of the loop
              end;
 
              if not IsValidTimeFormat(TimeFinish) then
              begin
+             WriteLog(IntToStr(Row) + ': TimeFinish is Invalid');
               UpdateErrorColumn(Row, 'TimeFinish is Invalid');
+              LogErrorRowToCSV(Row,'TimeFinish is Invalid');
               UpdateResultColumn(Row, 'NG');
               Continue; // Skip to the next iteration of the loop
              end;
              if MinMan = 0  then
              begin
+              WriteLog(IntToStr(Row) + ': MinMan is null');
               UpdateErrorColumn(Row, 'MinMan is null');
+              LogErrorRowToCSV(Row,'MinMan is null');
               UpdateResultColumn(Row, 'NG');
               Continue; // Skip to the next iteration of the loop
              end;
@@ -978,11 +1022,14 @@ begin
             timeE    :=  StringGridCSV.Cells[Finish, Row];
             shift := StringGridCSV.Cells[Shift_n, Row];
             bikou := CalculateWorkingTime(timeS,timeE,shift);  // min
+            MaxTime := GetMaxTime(StringGridCSV.Cells[Start, Row], StringGridCSV.Cells[MachStart, Row]);
             FormattedDateTime := FormatDateTimeStr(Ymds, MaxTime);  //lasted ymds
          end
           else
          begin
+              WriteLog(IntToStr(Row) + ': Time is Invalid');
               UpdateErrorColumn(Row, 'Time is Invalid');
+              LogErrorRowToCSV(Row,'Time is Invalid');
               UpdateResultColumn(Row, 'NG');
               Continue; // Skip to the next iteration of the loop
          end;
@@ -1003,7 +1050,9 @@ begin
            InsertQuery.Open;
            if (InsertQuery.FieldByName('Count').AsInteger <= 0) then
               begin
+              WriteLog(IntToStr(Row) + ': MachineCD is Invalid');
                 UpdateErrorColumn(Row, 'MachineCD is Invalid');
+                LogErrorRowToCSV(Row,'MachineCD is Invalid');
                 UpdateResultColumn(Row, 'NG');
                 Continue; // Skip to the next iteration of the loop
               end;
@@ -1012,7 +1061,9 @@ begin
             on E: Exception do
             begin
               // Handle exceptions such as connectivity issues, SQL syntax errors, etc.
+              WriteLog(IntToStr(Row) + ': Machine SQL is Invalid');
               UpdateErrorColumn(Row, 'Machine SQL is Invalid');
+              LogErrorRowToCSV(Row,'Machine SQL is Invalid');
               UpdateErrorColumn(Row, E.Message);
               UpdateResultColumn(Row, 'NG');
               Continue; // Skip to the next iteration of the loop
@@ -1029,7 +1080,9 @@ begin
            InsertQuery.Open;
            if (InsertQuery.FieldByName('Count').AsInteger <= 0) then
               begin
+                WriteLog(IntToStr(Row) + ': ATC is Invalid');
                 UpdateErrorColumn(Row, 'ATC is Invalid');
+                LogErrorRowToCSV(Row,'ATC is Invalid');
                 UpdateResultColumn(Row, 'NG');
                 Continue; // Skip to the next iteration of the loop
               end;
@@ -1038,8 +1091,10 @@ begin
             on E: Exception do
             begin
               // Handle exceptions such as connectivity issues, SQL syntax errors, etc.
+              WriteLog(IntToStr(Row) + ':ATC SQL is Invalid');
               UpdateErrorColumn(Row, 'ATC SQL is Invalid');
               UpdateErrorColumn(Row, E.Message);
+              LogErrorRowToCSV(Row, 'ATC SQL is Invalid');
               UpdateResultColumn(Row, 'NG');
               Continue; // Skip to the next iteration of the loop
             end;
@@ -1089,6 +1144,7 @@ begin
           // Handle any exceptions that occur during date processing
             WriteLog('Error: Ymde is missing in row ' + IntToStr(Row));
             UpdateResultColumn(Row, 'NG');
+            LogErrorRowToCSV(Row,'Error: Ymde is missing in row ');
             UpdateErrorColumn(Row, 'Ymde : '+E.Message); // Update the error column with the error message
             Continue; // Skip to the next iteration of the loop
         end;
@@ -1151,7 +1207,7 @@ begin
         InsertQuery.ParamByName('BunmValue').AsString := BunmValue;
         InsertQuery.ParamByName('BucdValue').AsString := BucdValue;
         InsertQuery.ParamByName('Gkoteicd').AsString := Gkoteicd;
-        InsertQuery.ParamByName('Kikaicd').AsString := Kikaicd;
+        InsertQuery.ParamByName('Kikaicd').AsString := MachValue;
         InsertQuery.ParamByName('Jigucd').AsString := Jigucd;
         InsertQuery.ParamByName('Tantocd').AsString := Tantocd;
         InsertQuery.ParamByName('FormattedDateTime').AsString := FormattedDateTime;
@@ -1181,14 +1237,16 @@ begin
         InsertQuery.Execute;
 
         ProgressBar1.Position := Row;
+        WriteLog('Suscess in row ' + IntToStr(Row) + ' ID : '+Inttostr(NewJDSEQNO));
         UpdateErrorColumn(Row, 'ID'+Inttostr(NewJDSEQNO) );
         except
             on E: Exception do
             begin
               // Log the error and update the "Result" column with "NG"
-              WriteLog('Error SQL Insertion ' + IntToStr(Row) + ': ' + E.Message);
+              WriteLog('Error Insertion : ' + IntToStr(Row) + ': ' + E.Message);
               UpdateResultColumn(Row, 'NG');
               UpdateErrorColumn(Row, 'Insertion : '+E.Message); // Update the error column with the error message
+              LogErrorRowToCSV(Row,'Insertion : '+E.Message);
               continue;
             end;
           end;
@@ -1197,7 +1255,7 @@ begin
         on E: Exception do
         begin
           // Log the error and update the "Result" column with "NG"
-          WriteLog('Error importing row ' + IntToStr(Row) + ': ' + E.Message);
+          WriteLog('Error General : ' + IntToStr(Row) + ': ' + E.Message);
           UpdateResultColumn(Row, 'NG');
           UpdateErrorColumn(Row, 'General : '+E.Message); // Update the error column with the error message
           continue;
@@ -1211,6 +1269,99 @@ begin
     Managefile;
     ProgressBar1.Position := 0; // Reset the progress bar
   end;
+end;
+
+procedure TForm1.LogErrorRowToCSV(Row: Integer; ErrorMessage: string);
+var
+  ErrorLog: TextFile;
+  ErrorFileName: string;
+  Col: Integer;
+  RowValues: string;
+  HeaderRow: string;
+  ColumnTitles: array of string; // Array to store column titles
+  CurrentDate: string;
+begin
+if Error ='1' then
+    Begin
+               // Initialize the column titles array
+        SetLength(ColumnTitles, StringGridCSV.ColCount);
+         ColumnTitles[0] := 'Date';
+         ColumnTitles[1] := 'Name';
+         ColumnTitles[2] := 'Employee Code';
+         ColumnTitles[3] := 'Code A';
+         ColumnTitles[4] := 'Code B';
+         ColumnTitles[5] := 'Code D';
+         ColumnTitles[6] := 'Cost Process Name';
+         ColumnTitles[7] := 'Modify Job No.';
+         ColumnTitles[8] := 'Mold Code';
+         ColumnTitles[9]:= 'Model';
+         ColumnTitles[10]:= 'Lamp Name';
+         ColumnTitles[11] := 'Part Name';
+         ColumnTitles[12] := 'Part Code';
+         ColumnTitles[13] := 'Part master';
+         ColumnTitles[14] := 'Code C';
+         ColumnTitles[15]:= 'Start';
+         ColumnTitles[16]:= 'Finish';
+         ColumnTitles[17]:= 'Min';
+         ColumnTitles[18]:= 'M/C Code';
+         ColumnTitles[19]:= 'Mach.master';
+         ColumnTitles[20]:= 'Start';
+         ColumnTitles[21]:= 'Date';
+         ColumnTitles[22]:= 'Finish';
+         ColumnTitles[23] := 'Min';
+         ColumnTitles[24] := 'ATC';
+         ColumnTitles[25]:= 'Remark';
+
+        // Add more titles as needed...
+        // Initialize the error log file
+         CurrentDate := FormatDateTime('YYYYMMDD', Now);
+        // Append the date to the file name
+        ErrorFileName := PathErrorCSV + '/ErrorLog_' + CurrentDate + '.csv';
+
+        AssignFile(ErrorLog, ErrorFileName);
+        if FileExists(ErrorFileName) then
+          Append(ErrorLog)
+        else
+            begin
+          Rewrite(ErrorLog);
+          // Construct the header row with column titles from the array
+          HeaderRow := '';
+          for Col := 0 to High(ColumnTitles) do
+          begin
+            if Col > 0 then
+              HeaderRow := HeaderRow + ',';
+            HeaderRow := HeaderRow + ColumnTitles[Col];
+          end;
+          // Append "Error Message" as the title for the last column
+          HeaderRow := HeaderRow + ',Error Message';
+          // Write the header row to the CSV file
+          WriteLn(ErrorLog, HeaderRow);
+        end;
+
+
+        // Construct the comma-separated string of all values in the row
+        RowValues := '';
+        for Col := 1 to StringGridCSV.ColCount - 1 do
+        begin
+          if Col > 1 then
+            RowValues := RowValues + ',';
+          RowValues := RowValues + StringGridCSV.Cells[Col, Row];
+        end;
+
+        // Append the error message as the last column
+        RowValues := RowValues + ',' + ErrorMessage;
+
+        // Write the row's values with the error message to the CSV file
+        WriteLn(ErrorLog, RowValues);
+
+        // Close the error log file
+        CloseFile(ErrorLog);
+    End
+    else
+    begin
+        //Nothing to do!!
+    end;
+
 end;
 
 function TForm1.IsMaxTime(CellValue1, CellValue2: string): string;
@@ -1319,7 +1470,7 @@ begin
     on E: Exception do
     begin
       // Log the error and return an empty string
-      WriteLog('Error calculating working time: ' + E.Message);
+      WriteLog('Error calculating working time : ' + E.Message);
       Result := '';
     end;
   end;
@@ -1440,15 +1591,15 @@ procedure TForm1.UpdateErrorColumn(Row: Integer; ErrorMessage: string);
 var
   i: Integer;
 begin
-  if StringGridCSV.ColCount <= 28 then // Check if the error column (25) exists
+  if StringGridCSV.ColCount <= 27 then // Check if the error column (25) exists
   begin
-    StringGridCSV.ColCount := 29; // Ensure there are at least 26 columns
+    StringGridCSV.ColCount := 28; // Ensure there are at least 26 columns
   end;
 
   // Set the width of all columns except column 25 to 50
   for i := 0 to StringGridCSV.ColCount - 1 do
   begin
-    if i <> 29 then
+    if i <> 28 then
       StringGridCSV.ColWidths[i] := 50;
   end;
 
@@ -1535,7 +1686,7 @@ end;
 procedure TForm1.StringGridCSVDrawCell(Sender: TObject; ACol, ARow: Integer; Rect: TRect; State: TGridDrawState);
     var
       S: string;
-      InfoColumnIndex: Integer;
+      InfoColumnIndex, TextWidth, NewColWidth: Integer;
       Grid: TStringGrid;
     const
       CellPadding = 2; // Adjust the padding as needed
@@ -1543,6 +1694,14 @@ procedure TForm1.StringGridCSVDrawCell(Sender: TObject; ACol, ARow: Integer; Rec
       Grid := Sender as TStringGrid;
       S := Grid.Cells[ACol, ARow]; // Get the cell text
       InfoColumnIndex := GetColumnIndexByHeaderName(StringGridCSV, 'Info');
+
+        // Calculate text width and adjust column width if necessary
+      Grid.Canvas.Font := Grid.Font; // Use the grid's font for measurement
+      TextWidth := Grid.Canvas.TextWidth(S) + 2 * CellPadding;
+      NewColWidth := Max(Grid.ColWidths[ACol], TextWidth);
+      if NewColWidth > Grid.ColWidths[ACol] then
+        Grid.ColWidths[ACol] := NewColWidth;
+
       // Check if this is a header cell
       if ARow = 0 then
       begin
@@ -1612,7 +1771,7 @@ begin
   Grid.OnDrawCell := StringGridCSVDrawCell;
 
   // Set number of columns
-  Grid.ColCount := 29;
+  Grid.ColCount := 28;
   Grid.RowCount := 1;
   SetIndex;
 
@@ -1626,7 +1785,7 @@ begin
 
   // Set the headers
   Grid.Cells[Result, 0] := 'Result';
-  Grid.Cells[Shift_n, 0] := 'Shift';
+  Grid.Cells[Shift_n, 0] := 'CodeB';
   Grid.Cells[Date, 0] := 'Date';
   Grid.Cells[WorkerName, 0] := 'Worker Name';
   Grid.Cells[EmployeeCode, 0] := 'Employee Code';
@@ -1652,7 +1811,6 @@ begin
   Grid.Cells[Remark, 0] := 'Remark';
   Grid.Cells[Status, 0] := 'Status';
   Grid.Cells[CodeA, 0] := 'CodeA';
-  Grid.Cells[CodeB, 0] := 'CodeB';
   Grid.Cells[CodeC, 0] := 'CodeC';
   // Set column widths for result column
   Grid.ColWidths[0] := 150;
@@ -1672,34 +1830,33 @@ end;
 procedure TForm1.SetIndex;
 begin
   Result := 0;
-  Shift_n := 1;
-  Date := 2;
-  WorkerName := 3;
-  EmployeeCode := 4;
-  CodeD := 5;
-  CostProcessName := 6;
-  MoldCode := 7;
-  Model := 8;
-  LampName := 9;
-  PartName := 10;
-  ModifyJobNo := 11;
-  PartCode := 12;
-  PartMaster := 13;
-  Start := 14;
-  Finish := 15;
-  Min := 16;
-  MCCode := 17;
-  Machmaster := 18;
-  MachStart := 19;
-  MachDate := 20;
-  MachFinish := 21;
-  MachMin := 22;
-  ATC := 23;
-  Remark := 24;
-  Status :=28;
-  CodeA := 26;
-  CodeB := 27;
-  CodeC :=25;
+  Date := 1;
+  WorkerName := 2;
+  EmployeeCode := 3;
+  CodeD := 6;
+  CostProcessName := 7;
+  MoldCode := 9;
+  Model := 10;
+  LampName := 11;
+  PartName := 12;
+  ModifyJobNo := 8;
+  PartCode := 13;
+  PartMaster := 14;
+  Start := 16;
+  Finish := 17;
+  Min := 18;
+  MCCode := 19;
+  Machmaster := 20;
+  MachStart := 21;
+  MachDate := 22;
+  MachFinish := 23;
+  MachMin := 24;
+  ATC := 25;
+  Remark := 26;
+  Status :=27;
+  CodeA := 4;
+  Shift_n := 5;    //code b
+  CodeC :=15;
 
 end;
 

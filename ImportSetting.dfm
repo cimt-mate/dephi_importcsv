@@ -2,7 +2,7 @@ object Form2: TForm2
   Left = 0
   Top = 0
   Caption = 'TKOITO Import'
-  ClientHeight = 285
+  ClientHeight = 350
   ClientWidth = 528
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -13,7 +13,7 @@ object Form2: TForm2
   OnCreate = FormCreate
   TextHeight = 15
   object SpeedButtonFolderBrowse: TSpeedButton
-    Left = 424
+    Left = 448
     Top = 17
     Width = 23
     Height = 22
@@ -22,7 +22,7 @@ object Form2: TForm2
     OnClick = SpeedButtonFolderBrowseClick
   end
   object SpeedButtonMoveFolderBrowse: TSpeedButton
-    Left = 424
+    Left = 448
     Top = 148
     Width = 23
     Height = 22
@@ -32,8 +32,8 @@ object Form2: TForm2
     OnClick = SpeedButtonMoveFolderBrowseClick
   end
   object SpeedButtonSave: TSpeedButton
-    Left = 387
-    Top = 243
+    Left = 382
+    Top = 302
     Width = 60
     Height = 32
     Caption = 'save'
@@ -42,8 +42,8 @@ object Form2: TForm2
     OnClick = SpeedButtonSaveClick
   end
   object SpeedButtonCancel: TSpeedButton
-    Left = 453
-    Top = 243
+    Left = 448
+    Top = 302
     Width = 60
     Height = 32
     Caption = 'Close'
@@ -52,7 +52,7 @@ object Form2: TForm2
     OnClick = SpeedButtonCancelClick
   end
   object SpeedButtonErrorFolderBrowse: TSpeedButton
-    Left = 424
+    Left = 448
     Top = 196
     Width = 23
     Height = 22
@@ -68,22 +68,32 @@ object Form2: TForm2
     Height = 15
     Caption = 'Folder Path'
   end
+  object SpeedButtonPathError: TSpeedButton
+    Left = 448
+    Top = 251
+    Width = 23
+    Height = 22
+    ImageIndex = 0
+    Images = ImageList1
+    Enabled = False
+    OnClick = SpeedButtonPathErrorClick
+  end
   object EditFolderPath: TEdit
-    Left = 104
+    Left = 128
     Top = 16
     Width = 306
     Height = 23
     TabOrder = 0
   end
   object EditMovePath: TEdit
-    Left = 103
+    Left = 127
     Top = 147
     Width = 306
     Height = 23
     TabOrder = 1
   end
   object EditErrorPath: TEdit
-    Left = 103
+    Left = 127
     Top = 198
     Width = 315
     Height = 23
@@ -94,21 +104,21 @@ object Form2: TForm2
     Top = 201
     Width = 73
     Height = 17
-    Caption = 'ErrorFile'
+    Caption = 'LogFile'
     TabOrder = 3
     OnClick = CheckBoxErrorFileClick
   end
   object CheckBoxLogFile: TCheckBox
     Left = 24
     Top = 64
-    Width = 73
+    Width = 98
     Height = 17
-    Caption = 'Log File'
+    Caption = 'Backup File'
     TabOrder = 4
     OnClick = CheckBoxLogFileClick
   end
   object RadioButtonDelete: TRadioButton
-    Left = 112
+    Left = 128
     Top = 64
     Width = 65
     Height = 17
@@ -117,13 +127,30 @@ object Form2: TForm2
     OnClick = RadioButtonDeleteClick
   end
   object RadioButtonMove: TRadioButton
-    Left = 112
+    Left = 128
     Top = 96
     Width = 65
     Height = 17
     Caption = 'Move'
     TabOrder = 6
     OnClick = RadioButtonMoveClick
+  end
+  object CheckBoxError: TCheckBox
+    Left = 24
+    Top = 256
+    Width = 73
+    Height = 17
+    Caption = 'ErrorFile'
+    TabOrder = 7
+    OnClick = CheckBoxErrorClick
+  end
+  object EditPathError: TEdit
+    Left = 127
+    Top = 253
+    Width = 315
+    Height = 23
+    Enabled = False
+    TabOrder = 8
   end
   object ImageList1: TImageList
     ColorDepth = cd32Bit
