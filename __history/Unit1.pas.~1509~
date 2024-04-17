@@ -651,7 +651,6 @@ begin
         if not FileExists(IniFileName) then
         begin
           UpdateErrorColumn(Row, 'INI file not found');
-          LogErrorRowToCSV(Row, 'INI file not found: ' + IniFileName);
           num := num + 1;
         end;
         IniFile := TIniFile.Create(IniFileName);
@@ -660,8 +659,6 @@ begin
           if CD2Value = '' then
           begin
             UpdateErrorColumn(Row, 'CD2 value not found');
-            LogErrorRowToCSV(Row,
-              'CD2 value not found or INI file not read correctly.');
             num := num + 1;
           end;
         finally
@@ -673,7 +670,6 @@ begin
         if not GetComputerName(Buffer, Size) then
         begin
           UpdateErrorColumn(Row, 'Failed to get computer name');
-          LogErrorRowToCSV(Row, 'Failed to get computer name.');
           num := num + 1;
 
         end;
@@ -683,7 +679,6 @@ begin
         if MACAddr = '' then
         begin
           UpdateErrorColumn(Row, 'Failed to get MAC address');
-          LogErrorRowToCSV(Row, 'Failed to get MAC address.');
           num := num + 1;
         end;
         // Get Windows Username
@@ -691,7 +686,6 @@ begin
         if WinUserName = '' then
         begin
           UpdateErrorColumn(Row, 'Failed to get Windows username');
-          LogErrorRowToCSV(Row, 'Failed to get Windows username.');
           num := num + 1;
         end;
         // Get Executable Name
@@ -699,7 +693,7 @@ begin
         if ExeName = '' then
         begin
           UpdateErrorColumn(Row, 'Failed to get executable name');
-          LogErrorRowToCSV(Row, 'Failed to get executable name.');
+
           num := num + 1;
         end;
         // Get Executable Version
@@ -707,7 +701,6 @@ begin
         if ExeVersion = '' then
         begin
           UpdateErrorColumn(Row, 'Failed to get executable version');
-          LogErrorRowToCSV(Row, 'Failed to get executable version.');
           num := num + 1;
         end;
 
@@ -840,7 +833,6 @@ begin
             if (InsertQuery.FieldByName('Count').AsInteger <= 0) then
             begin
               UpdateErrorColumn(Row, 'PartCode is Invalid');
-              LogErrorRowToCSV(Row, 'PartCode is Invalid');
               UpdateResultColumn(Row, 'NG');
               num := num + 1;
             end;
@@ -850,7 +842,6 @@ begin
           begin
             // Handle exceptions such as connectivity issues, SQL syntax errors, etc.
             UpdateErrorColumn(Row, 'PART SQL is Invalid');
-            LogErrorRowToCSV(Row, 'PART SQL is Invalid');
             UpdateResultColumn(Row, 'NG');
             num := num + 1;
           end;
@@ -871,13 +862,33 @@ begin
         Sagyoh := MinMan + 0 + 0;
         Kikaikadoh := MinMan + MinMach + 0 + 0;
 
+
+        if MinManStr <> '' then
+        begin
+          if (TimeStr = '') or (TimeFinish = '') or (DateStr = '') then
+          begin
+              UpdateErrorColumn(Row, 'TimeDate is Invalid');
+              UpdateResultColumn(Row, 'NG');
+              num := num + 1;
+          end;
+        end
+        else if MinMachStr <> '' then
+        begin
+          if (TimeStrMach = '') or (TimeFinishMach = '') or (DateMach = '') then
+            begin
+                UpdateErrorColumn(Row, 'TimeDate is Invalid');
+                UpdateResultColumn(Row, 'NG');
+                num := num + 1;
+            end;
+        end;
+
+
         // Machine Unman
         if (TimeStrMach <> '') and (TimeFinishMach <> '') and (DateMach <> '') AND (TimeStr = '') and (TimeFinish = '')  then
         begin
           if not(IsValidTimeFormat(TimeStrMach)) then
           begin
             UpdateErrorColumn(Row, 'TimeMachStart is Invalid');
-            LogErrorRowToCSV(Row, 'TimeMachStart is Invalid');
             UpdateResultColumn(Row, 'NG');
             num := num + 1;
           end;
@@ -885,7 +896,6 @@ begin
           if not IsValidTimeFormat(TimeFinishMach) then
           begin
             UpdateErrorColumn(Row, 'TimeMachFinish is Invalid');
-            LogErrorRowToCSV(Row, 'TimeMachFinish is Invalid');
             UpdateResultColumn(Row, 'NG');
             num := num + 1;
           end;
@@ -893,7 +903,6 @@ begin
           if (DateMach = '') and not TryStrToDate(StringGridCSV.Cells[MachDate,Row], DateMachineValue) then
           begin
             UpdateErrorColumn(Row, 'MachDate is null');
-            LogErrorRowToCSV(Row, 'MachDate is null');
             UpdateResultColumn(Row, 'NG');
             num := num + 1;
           end;
@@ -901,23 +910,20 @@ begin
           if MinMach = 0 then
           begin
             UpdateErrorColumn(Row, 'MinMach is null');
-            LogErrorRowToCSV(Row, 'MinMach is null');
             UpdateResultColumn(Row, 'NG');
             num := num + 1;
           end;
 
           if (DateMach = DateStr) and ( strtofloat(TimeStrMach) > strtofloat(TimeFinishMach) ) then
           begin
-          UpdateErrorColumn(Row, 'TimeStart&TimeEnd is Invalid');
-            LogErrorRowToCSV(Row, 'TimeStart&TimeEnd is Invalid');
+            UpdateErrorColumn(Row, 'TimeStart&TimeEnd is Invalid');
             UpdateResultColumn(Row, 'NG');
             num := num + 1;
           end;
 
           if (DateMach < DateStr) then
           begin
-          UpdateErrorColumn(Row, 'TimeStart&TimeEnd is Invalid');
-            LogErrorRowToCSV(Row, 'TimeStart&TimeEnd is Invalid');
+            UpdateErrorColumn(Row, 'TimeStart&TimeEnd is Invalid');
             UpdateResultColumn(Row, 'NG');
             num := num + 1;
           end;
@@ -933,7 +939,6 @@ begin
           if not IsValidTimeFormat(TimeStr) then
           begin
             UpdateErrorColumn(Row, 'TimeStart is Invalid');
-            LogErrorRowToCSV(Row, 'TimeStart is Invalid');
             UpdateResultColumn(Row, 'NG');
             num := num + 1;
           end;
@@ -941,14 +946,12 @@ begin
           if not IsValidTimeFormat(TimeFinish) then
           begin
             UpdateErrorColumn(Row, 'TimeFinish is Invalid');
-            LogErrorRowToCSV(Row, 'TimeFinish is Invalid');
             UpdateResultColumn(Row, 'NG');
             num := num + 1;
           end;
           if MinMan = 0 then
           begin
             UpdateErrorColumn(Row, 'MinMan is null');
-            LogErrorRowToCSV(Row, 'MinMan is null');
             UpdateResultColumn(Row, 'NG');
             num := num + 1;
           end;
@@ -967,7 +970,6 @@ begin
         else
         begin
           UpdateErrorColumn(Row, 'Time is Invalid');
-          LogErrorRowToCSV(Row, 'Time is Invalid');
           UpdateResultColumn(Row, 'NG');
           num := num + 1;
         end;
@@ -986,7 +988,6 @@ begin
           begin
             // Handle exceptions such as connectivity issues, SQL syntax errors, etc.
             UpdateErrorColumn(Row, 'Check JhMin is valid');
-            LogErrorRowToCSV(Row, 'Check JhMin is valid');
             UpdateResultColumn(Row, 'NG');
             Continue; // Skip to the next iteration of the loop
           end;
@@ -1003,7 +1004,6 @@ begin
             if (InsertQuery.FieldByName('Count').AsInteger <= 0) then
             begin
               UpdateErrorColumn(Row, 'MachineCD is Invalid');
-              LogErrorRowToCSV(Row, 'MachineCD is Invalid');
               UpdateResultColumn(Row, 'NG');
               num := num + 1;
             end;
@@ -1013,7 +1013,6 @@ begin
                if (MinMachStr <> '') or (TimeStrMach <> '') or (TimeFinishMach <> '') or (DateMach <> '') then
                    begin
                         UpdateErrorColumn(Row, 'MachineCD is Null');
-                        LogErrorRowToCSV(Row, 'MachineCD is Null');
                         UpdateResultColumn(Row, 'NG');
                         num := num + 1; // Skip to the next iteration of the loop
                    end;
@@ -1023,7 +1022,6 @@ begin
           begin
             // Handle exceptions such as connectivity issues, SQL syntax errors, etc.
             UpdateErrorColumn(Row, 'Machine SQL is Invalid');
-            LogErrorRowToCSV(Row, 'Machine SQL is Invalid');
             UpdateResultColumn(Row, 'NG');
             num := num + 1;
           end;
@@ -1041,7 +1039,6 @@ begin
             if (InsertQuery.FieldByName('Count').AsInteger <= 0) then
             begin
               UpdateErrorColumn(Row, 'ATC is Invalid');
-              LogErrorRowToCSV(Row, 'ATC is Invalid');
               UpdateResultColumn(Row, 'NG');
               num := num + 1;
             end;
@@ -1051,7 +1048,6 @@ begin
           begin
             // Handle exceptions such as connectivity issues, SQL syntax errors, etc.
             UpdateErrorColumn(Row, 'ATC SQL is Invalid');
-            LogErrorRowToCSV(Row, 'ATC SQL is Invalid');
             UpdateResultColumn(Row, 'NG');
             num := num + 1;
           end;
@@ -1106,7 +1102,6 @@ begin
           begin
             // Handle any exceptions that occur during date processing
             UpdateResultColumn(Row, 'NG');
-            LogErrorRowToCSV(Row, 'Error: Ymde is missing in row ');
             UpdateErrorColumn(Row, 'Ymde : ' + E.Message);
             // Update the error column with the error message
             num := num + 1;
@@ -1244,6 +1239,7 @@ begin
           WriteLog('Error Row ' + IntToStr(Row) + ' : INI file not found : ' +
             IniFileName);
           LogRowToCSV(Row, 'INI file not found: ' + IniFileName);
+          LogErrorRowToCSV(Row, 'INI file not found: ' + IniFileName);
           num := num + 1; // Skip to the next iteration of the loop
         end;
         IniFile := TIniFile.Create(IniFileName);
@@ -1255,6 +1251,7 @@ begin
               ' : CD2 value not found or INI file not read correctly.');
             LogRowToCSV(Row,
               'CD2 value not found or INI file not read correctly.');
+            LogErrorRowToCSV(Row,'CD2 value not found or INI file not read correctly.');
             num := num + 1; // Skip to the next iteration of the loop
           end;
         finally
@@ -1268,6 +1265,7 @@ begin
           WriteLog('Error Row ' + IntToStr(Row) +
             ' : Failed to get computer name.');
           LogRowToCSV(Row, 'Failed to get computer name.');
+          LogErrorRowToCSV(Row, 'Failed to get computer name.');
           num := num + 1; // Skip to the next iteration of the loop
         end;
         CompName := Buffer;
@@ -1277,6 +1275,7 @@ begin
         begin
           WriteLog('Error Row ' + IntToStr(Row) +
             ' : Failed to get MAC address.');
+          LogErrorRowToCSV(Row, 'Failed to get MAC address.');
           LogRowToCSV(Row, 'Failed to get MAC address.');
           num := num + 1; // Skip to the next iteration of the loop
         end;
@@ -1286,6 +1285,7 @@ begin
         begin
           WriteLog('Error Row ' + IntToStr(Row) +
             ' : Failed to get Windows username.');
+          LogErrorRowToCSV(Row, ' Failed to get Windows username.');
           LogRowToCSV(Row, 'Failed to get Windows username.');
           num := num + 1; // Skip to the next iteration of the loop
         end;
@@ -1295,6 +1295,7 @@ begin
         begin
           WriteLog('Error Row ' + IntToStr(Row) +
             ' : Failed to get executable name.');
+          LogErrorRowToCSV(Row, 'Failed to get executable name.');
           LogRowToCSV(Row, 'Failed to get executable name.');
           num := num + 1; // Skip to the next iteration of the loop
         end;
@@ -1305,6 +1306,7 @@ begin
           WriteLog('Error Row ' + IntToStr(Row) +
             ' : Failed to get executable version.');
           LogRowToCSV(Row, 'Failed to get executable version.');
+          LogErrorRowToCSV(Row, 'Failed to get executable version.');
           num := num + 1; // Skip to the next iteration of the loop
         end;
 
@@ -1345,6 +1347,7 @@ begin
           WriteLog('Error Row ' + IntToStr(Row) +
             ' :  Invalid or Missing Date Format');
           LogRowToCSV(Row, 'Invalid or Missing Date Format');
+          LogErrorRowToCSV(Row, 'Invalid or Missing Date Format.');
           // You can also log the error, update a status column, etc.
           num := num + 1; // Skip to the next iteration of the loop
         end
@@ -1352,6 +1355,7 @@ begin
         begin
           WriteLog('Error Row ' + IntToStr(Row) + ' :  Invalid Date Value');
           LogRowToCSV(Row, 'Invalid Date Value');
+          LogErrorRowToCSV(Row, 'Invalid Date Value.');
           num := num + 1;
         end;
 
@@ -1367,6 +1371,7 @@ begin
             WriteLog('Error Row ' + IntToStr(Row) +
               ' :  Employee Code is Invalid');
             LogRowToCSV(Row, 'Employee Code is Invalid');
+            LogErrorRowToCSV(Row, 'Employee Code is Invalid.');
             num := num + 1; // Skip to the next iteration of the loop
           end;
         except
@@ -1376,6 +1381,7 @@ begin
             WriteLog('Error Row ' + IntToStr(Row) +
               ' : WorkerCD SQL is Invalid');
             LogRowToCSV(Row, 'WorkerCD SQL is Invalid');
+            LogErrorRowToCSV(Row, 'WorkerCD SQL is Invalid.');
             num := num + 1; // Skip to the next iteration of the loop
           end;
         end;
@@ -1400,6 +1406,7 @@ begin
             WriteLog('Error Row ' + IntToStr(Row) +
               ' : Cost process CD SQL is Invalid');
             LogRowToCSV(Row, 'Cost process CD SQL is Invalid');
+            LogErrorRowToCSV(Row, 'Cost process CD SQL is Invalid.');
             num := num + 1; // Skip to the next iteration of the loop
           end;
         end;
@@ -1416,6 +1423,7 @@ begin
             WriteLog('Error Row ' + IntToStr(Row) +
               ' : ModifyJobNo is Invalid');
             LogRowToCSV(Row, 'ModifyJobNo is Invalid');
+            LogErrorRowToCSV(Row, 'ModifyJobNo is Invalid.');
             num := num + 1; // Skip to the next iteration of the loop
           end;
 
@@ -1426,6 +1434,7 @@ begin
             WriteLog('Error Row ' + IntToStr(Row) +
               ' : ModifyJobNo SQL is Invalid');
             LogRowToCSV(Row, 'ModifyJobNo SQL is Invalid');
+            LogErrorRowToCSV(Row, 'ModifyJobNo SQL is Invalid.');
             num := num + 1; // Skip to the next iteration of the loop
           end;
         end;
@@ -1442,6 +1451,7 @@ begin
             begin
               WriteLog('Error Row ' + IntToStr(Row) + ' : PartCode is Invalid');
               LogRowToCSV(Row, 'PartCode is Invalid');
+              LogErrorRowToCSV(Row, 'PartCode is Invalid.');
               num := num + 1; // Skip to the next iteration of the loop
             end;
           end;
@@ -1470,6 +1480,26 @@ begin
         Sagyoh := MinMan + 0 + 0;
         Kikaikadoh := MinMan + MinMach + 0 + 0;
 
+        if MinManStr <> '' then
+        begin
+            if (TimeStr = '') or (TimeFinish = '') or (DateStr = '') then
+            begin
+              WriteLog('Error Row ' + IntToStr(Row) +' : TimeDate is Invalid');
+              LogRowToCSV(Row, 'TimeDate is Invalid');
+              num := num + 1; // Skip to the next iteration of the loop
+            end;
+        end
+        else if MinMachStr <> '' then
+        begin
+          if (TimeStrMach = '') or (TimeFinishMach = '') or (DateMach = '') then
+            begin
+              WriteLog('Error Row ' + IntToStr(Row) +' : TimeDate is Invalid');
+              LogRowToCSV(Row, 'TimeDate is Invalid');
+              num := num + 1; // Skip to the next iteration of the loop
+            end;
+        end;
+
+
         // Machine Unman
        if (TimeStrMach <> '') and (TimeFinishMach <> '') and (DateMach <> '') AND (TimeStr = '') and (TimeFinish = '')  then
         begin
@@ -1494,6 +1524,7 @@ begin
           begin
             WriteLog('Error Row ' + IntToStr(Row) + ' : MachDate is null');
             LogRowToCSV(Row, 'MachDate is null');
+            LogErrorRowToCSV(Row, 'Check JhMin is valid');
             num := num + 1; // Skip to the next iteration of the loop
           end;
 
@@ -1501,6 +1532,7 @@ begin
           begin
             WriteLog('Error Row ' + IntToStr(Row) + ' : MinMach is null');
             LogRowToCSV(Row, 'MinMach is null');
+            LogErrorRowToCSV(Row, 'Check JhMin is valid');
             num := num + 1; // Skip to the next iteration of the loop
           end;
 
@@ -1508,12 +1540,13 @@ begin
           begin
             WriteLog('Error Row ' + IntToStr(Row) + ' : TimeStart&TimeEnd is Invalid');
             LogRowToCSV(Row, 'TimeStart&TimeEnd is Invalid');
+            LogErrorRowToCSV(Row, 'Check JhMin is valid');
             num := num + 1;
           end;
 
-          if (DateMach > DateStr) then
+          if (DateMach < DateStr) then
           begin
-          UpdateErrorColumn(Row, 'TimeStart&TimeEnd is Invalid');
+            UpdateErrorColumn(Row, 'TimeStart&TimeEnd is Invalid');
             LogErrorRowToCSV(Row, 'TimeStart&TimeEnd is Invalid');
             UpdateResultColumn(Row, 'NG');
             num := num + 1;
