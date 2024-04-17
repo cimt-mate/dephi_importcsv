@@ -28,6 +28,9 @@ type
     CheckBoxError: TCheckBox;
     EditPathError: TEdit;
     SpeedButtonPathError: TSpeedButton;
+    CheckBoxResult: TCheckBox;
+    EditResultPath: TEdit;
+    SpeedButtonResult: TSpeedButton;
     procedure CheckBoxLogFileClick(Sender: TObject);
     procedure RadioButtonDeleteClick(Sender: TObject);
     procedure RadioButtonMoveClick(Sender: TObject);
@@ -40,6 +43,8 @@ type
     procedure SpeedButtonCancelClick(Sender: TObject);
     procedure CheckBoxErrorClick(Sender: TObject);
     procedure SpeedButtonPathErrorClick(Sender: TObject);
+    procedure CheckBoxResultClick(Sender: TObject);
+    procedure SpeedButtonResultClick(Sender: TObject);
   private
     { Private declarations }
     procedure SaveSettings;
@@ -76,6 +81,12 @@ begin
   RadioButtonMove.Enabled := CheckBoxLogFile.Checked;
   EditMovePath.Enabled := CheckBoxLogFile.Checked;
   SpeedButtonMoveFolderBrowse.Enabled := CheckBoxLogFile.Checked;
+end;
+
+procedure TForm2.CheckBoxResultClick(Sender: TObject);
+begin
+  EditResultPath.Enabled := CheckBoxResult.Checked;
+  SpeedButtonResult.Enabled := CheckBoxResult.Checked;
 end;
 
 procedure TForm2.FormCreate(Sender: TObject);
@@ -118,6 +129,10 @@ begin
     // Error File
     IniFile.WriteBool('Settings', 'HasErrorFile',CheckBoxErrorFile.Checked);
     IniFile.WriteString('Settings', 'ErrorPath', EditErrorPath.Text);
+    //Result
+    IniFile.WriteBool('Settings', 'HasResult',CheckBoxResult.Checked);
+    IniFile.WriteString('Settings', 'ResultPath', EditResultPath.Text);
+
   finally
     IniFile.Free;
   end;
@@ -201,6 +216,22 @@ begin
   end;
 end;
 
+procedure TForm2.SpeedButtonResultClick(Sender: TObject);
+var
+  FolderDialog: TFileOpenDialog;
+begin
+  FolderDialog := TFileOpenDialog.Create(nil);
+  try
+    FolderDialog.Options := FolderDialog.Options + [fdoPickFolders];
+    if FolderDialog.Execute then
+    begin
+      EditResultPath.Text := FolderDialog.FileName;
+    end;
+  finally
+    FolderDialog.Free;
+  end;
+end;
+
 procedure TForm2.LoadSettings;
 var
   IniFile: TIniFile;
@@ -221,6 +252,11 @@ begin
     RadioButtonMove.Checked := (Operation = 'Move');
     EditMovePath.Text := IniFile.ReadString('Settings', 'MovePath', '');
     EditPathError.Text := IniFile.ReadString('Settings', 'PathErrorCSV', '');
+    //Result
+    CheckBoxResult.Checked := IniFile.ReadBool('Settings', 'HasResult', False);
+    EditResultPath.Text := IniFile.ReadString('Settings', 'ResultPath', '');
+
+
     // Enable or not from HasLogFile
     RadioButtonDelete.Enabled := CheckBoxLogFile.Checked;
     RadioButtonMove.Enabled := CheckBoxLogFile.Checked;
@@ -231,6 +267,8 @@ begin
     EditPathError.Enabled := CheckBoxError.Checked;
     SpeedButtonPathError.Enabled := CheckBoxError.Checked;
 
+    EditResultPath.Enabled := CheckBoxResult.Checked;
+    SpeedButtonResult.Enabled := CheckBoxResult.Checked;
 
     // Visible Edit Path Field
     EditMovePath.Visible :=  RadioButtonMove.Checked;

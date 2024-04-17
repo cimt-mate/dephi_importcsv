@@ -2,8 +2,8 @@ object Form2: TForm2
   Left = 0
   Top = 0
   Caption = 'TKOITO Import'
-  ClientHeight = 350
-  ClientWidth = 528
+  ClientHeight = 356
+  ClientWidth = 540
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -23,7 +23,7 @@ object Form2: TForm2
   end
   object SpeedButtonMoveFolderBrowse: TSpeedButton
     Left = 448
-    Top = 148
+    Top = 132
     Width = 23
     Height = 22
     ImageIndex = 0
@@ -53,7 +53,7 @@ object Form2: TForm2
   end
   object SpeedButtonErrorFolderBrowse: TSpeedButton
     Left = 448
-    Top = 196
+    Top = 180
     Width = 23
     Height = 22
     ImageIndex = 0
@@ -70,13 +70,23 @@ object Form2: TForm2
   end
   object SpeedButtonPathError: TSpeedButton
     Left = 448
-    Top = 251
+    Top = 219
     Width = 23
     Height = 22
     ImageIndex = 0
     Images = ImageList1
     Enabled = False
     OnClick = SpeedButtonPathErrorClick
+  end
+  object SpeedButtonResult: TSpeedButton
+    Left = 448
+    Top = 261
+    Width = 23
+    Height = 22
+    ImageIndex = 0
+    Images = ImageList1
+    Enabled = False
+    OnClick = SpeedButtonResultClick
   end
   object EditFolderPath: TEdit
     Left = 128
@@ -87,21 +97,21 @@ object Form2: TForm2
   end
   object EditMovePath: TEdit
     Left = 127
-    Top = 147
+    Top = 131
     Width = 306
     Height = 23
     TabOrder = 1
   end
   object EditErrorPath: TEdit
     Left = 127
-    Top = 198
+    Top = 182
     Width = 315
     Height = 23
     TabOrder = 2
   end
   object CheckBoxErrorFile: TCheckBox
     Left = 24
-    Top = 201
+    Top = 185
     Width = 73
     Height = 17
     Caption = 'LogFile'
@@ -137,7 +147,7 @@ object Form2: TForm2
   end
   object CheckBoxError: TCheckBox
     Left = 24
-    Top = 256
+    Top = 224
     Width = 73
     Height = 17
     Caption = 'ErrorFile'
@@ -146,16 +156,33 @@ object Form2: TForm2
   end
   object EditPathError: TEdit
     Left = 127
-    Top = 253
+    Top = 221
     Width = 315
     Height = 23
     Enabled = False
     TabOrder = 8
   end
+  object CheckBoxResult: TCheckBox
+    Left = 24
+    Top = 264
+    Width = 73
+    Height = 17
+    Caption = 'Resultfile'
+    TabOrder = 9
+    OnClick = CheckBoxResultClick
+  end
+  object EditResultPath: TEdit
+    Left = 127
+    Top = 261
+    Width = 315
+    Height = 23
+    Enabled = False
+    TabOrder = 10
+  end
   object ImageList1: TImageList
     ColorDepth = cd32Bit
-    Left = 464
-    Top = 40
+    Left = 496
+    Top = 24
     Bitmap = {
       494C010103000800040010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000001000000001002000000000000010
@@ -297,7 +324,7 @@ object Form2: TForm2
       000000000000}
   end
   object OpenDialog1: TOpenDialog
-    Left = 472
-    Top = 72
+    Left = 496
+    Top = 80
   end
 end
