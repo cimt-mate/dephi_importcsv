@@ -41,6 +41,7 @@ type
     Refresh1: TMenuItem;
     Copytocsv1: TMenuItem;
     SpeedButton3: TSpeedButton;
+    LabelOK: TLabel;
     procedure OpenFolderPathClick(Sender: TObject);
     procedure ButtonReadClick(Sender: TObject);
     procedure SpeedButtonIMPClick(Sender: TObject);
@@ -224,6 +225,7 @@ begin
     ClearStringGrid(StringGridCSV);
     SpeedButton1.Enabled := True;
     SpeedButtonIMP.Enabled := false;
+     LabelOK.Caption := '';
 end;
 
 procedure TForm1.CheckGRDFolder;
@@ -344,8 +346,40 @@ begin
 end;
 
 procedure TForm1.FormShow(Sender: TObject);
+var
+  i: Integer;
+  AutoExportCheck: Boolean;
 begin
   CheckGRDFolder;
+  AutoExportCheck := False;
+  for i := 1 to ParamCount do
+  begin
+    if UpperCase(ParamStr(i)) = '/AUTO' then
+      begin
+        try
+           //Read
+             LabelOK.Caption :=  '';
+              ReadSettings;
+              ClearStringGrid(StringGridCSV);
+              LoadCSVFilesIntoGrid(EditFolderPath.Text);
+              SpeedButton1.Enabled := false;
+              CheckValues;
+              SpeedButtonIMP.Enabled := True;
+           //Import
+              ImportDataToDatabase;
+              SpeedButton1.Enabled := True;
+              SpeedButtonIMP.Enabled := false;
+           WriteLog('AutoExport Success');
+          except
+              on E: Exception do
+              begin
+                WriteLog('Error in AutoExport : ' + E.Message);
+              end;
+          end;
+          Application.Terminate;
+          Break;
+      end;
+  end;
 end;
 
 function TForm1.GetAppVersion: string;
@@ -534,6 +568,7 @@ begin
      ClearStringGrid(StringGridCSV);
        SpeedButton1.Enabled := True;
       SpeedButtonIMP.Enabled := false;
+      LabelOK.Caption := '';
 end;
 
 procedure TForm1.SpeedButtonIMPClick(Sender: TObject);
@@ -585,6 +620,7 @@ end;
 
 procedure TForm1.ButtonReadClick(Sender: TObject);
 begin
+  LabelOK.Caption :=  '';
   ReadSettings;
   ClearStringGrid(StringGridCSV);
   LoadCSVFilesIntoGrid(EditFolderPath.Text);
@@ -595,6 +631,7 @@ end;
 
 procedure TForm1.CheckValues;
 var
+  OKCount, NGCount, i: Integer;
   IniFile: TIniFile;
   IniFileName: string;
   CD2Value: string;
@@ -623,6 +660,8 @@ begin
   // Load the database connection parameters
   LoadConnectionParameters;
   SetIndex;
+  OKCount := 0;
+  NGCount := 0;
   // Check if the UniConnection is connected
   if not UniConnection.Connected then
   begin
@@ -859,7 +898,13 @@ begin
         begin
           if (TimeStr = '') or (TimeFinish = '') or (DateStr = '') then
           begin
-              UpdateErrorColumn(Row, 'TimeDate is Invalid');
+              UpdateErrorColumn(Row, 'Time is Valid');
+              UpdateResultColumn(Row, 'NG');
+              num := num + 1;
+          end;
+          if (MinMachStr <> '') or (TimeStrMach <> '') or (TimeFinishMach <> '') or (DateMach <> '') then
+          begin
+              UpdateErrorColumn(Row, 'Contain both Man and Unman data');
               UpdateResultColumn(Row, 'NG');
               num := num + 1;
           end;
@@ -868,10 +913,16 @@ begin
         begin
           if (TimeStrMach = '') or (TimeFinishMach = '') or (DateMach = '') then
             begin
-                UpdateErrorColumn(Row, 'TimeDate is Invalid');
+                UpdateErrorColumn(Row, 'Time is Valid');
                 UpdateResultColumn(Row, 'NG');
                 num := num + 1;
             end;
+          if (MinManStr <> '') or (TimeStr <> '') or (TimeFinish <> '') then
+          begin
+              UpdateErrorColumn(Row, 'Contain both Man and Unman data');
+              UpdateResultColumn(Row, 'NG');
+              num := num + 1;
+          end;
         end;
 
 
@@ -979,7 +1030,7 @@ begin
           on E: Exception do
           begin
             // Handle exceptions such as connectivity issues, SQL syntax errors, etc.
-            UpdateErrorColumn(Row, 'Check JhMin is valid');
+            UpdateErrorColumn(Row, 'Check JhMin is invalid');
             UpdateResultColumn(Row, 'NG');
             Continue; // Skip to the next iteration of the loop
           end;
@@ -1089,12 +1140,22 @@ begin
             StringGridCSV.Cells[MachFinish, Row]);
           // MANAGE YMDE DATETIME
           FormattedDateEnd := FormatDateTimeStr(Ymde, time); // lasted ymde
+          if StringGridCSV.Cells[MachMin, Row] <> '' then
+            begin
+                CalculateMinutesDifference(FormattedDateTime, FormattedDateEnd, TotalMinutes);
+                Bikou := Inttostr(TotalMinutes);
+                if JhValue = StrtoInt(Bikou) then
+                begin
+                    Bikou := '0';
+                end;
+            end
+
         except
           on E: Exception do
           begin
             // Handle any exceptions that occur during date processing
             UpdateResultColumn(Row, 'NG');
-            UpdateErrorColumn(Row, 'Ymde : ' + E.Message);
+            UpdateErrorColumn(Row, 'Ymde is missing ');
             // Update the error column with the error message
             num := num + 1;
           end;
@@ -1161,6 +1222,16 @@ begin
       end;
     end;
   finally
+    for i := 1 to StringGridCSV.RowCount - 1 do
+          begin
+            if StringGridCSV.Cells[0, i] = 'OK' then
+              Inc(OKCount)
+            else if StringGridCSV.Cells[0, i] = 'NG' then
+              Inc(NGCount);
+          end;
+
+          // Display the counts in the labels
+    LabelOK.Caption := 'OK: ' + IntToStr(OKCount) +' NG: ' + IntToStr(NGCount);
     UniConnection.Rollback;
     InsertQuery.Free;
     ProgressBar1.Position := 0; // Reset the progress bar
@@ -1169,6 +1240,7 @@ end;
 
 procedure TForm1.ImportDataToDatabase;
 var
+  OKCount, NGCount, i: Integer;
   IniFile: TIniFile;
   IniFileName: string;
   CD2Value: string;
@@ -1197,6 +1269,8 @@ begin
   // Load the database connection parameters
   LoadConnectionParameters;
   SetIndex;
+  OKCount := 0;
+  NGCount := 0;
 
   // Check if the UniConnection is connected
   if not UniConnection.Connected then
@@ -1477,21 +1551,33 @@ begin
         begin
             if (TimeStr = '') or (TimeFinish = '') or (DateStr = '') then
             begin
-              WriteLog('Error Row ' + IntToStr(Row) +' : TimeDate is Invalid');
-              LogRowToCSV(Row, 'TimeDate is Invalid');
+              WriteLog('Error Row ' + IntToStr(Row) +' : Time is Valid');
+              LogRowToCSV(Row, 'Time is Valid');
+              num := num + 1; // Skip to the next iteration of the loop
+            end;
+            if (MinMachStr <> '') or (TimeStrMach <> '') or (TimeFinishMach <> '') or (DateMach <> '') then
+            begin
+              WriteLog('Error Row ' + IntToStr(Row) +' : Contain both Man and Unman data');
+              LogRowToCSV(Row, 'Contain both Man and Unman data');
               num := num + 1; // Skip to the next iteration of the loop
             end;
         end
         else if MinMachStr <> '' then
         begin
-          if (TimeStrMach = '') or (TimeFinishMach = '') or (DateMach = '') then
+           if (TimeStrMach = '') or (TimeFinishMach = '') or (DateMach = '') then
             begin
-              WriteLog('Error Row ' + IntToStr(Row) +' : TimeDate is Invalid');
-              LogRowToCSV(Row, 'TimeDate is Invalid');
+              WriteLog('Error Row ' + IntToStr(Row) +' : Time is Valid');
+              LogRowToCSV(Row, 'Time is Valid');
+              num := num + 1; // Skip to the next iteration of the loop
+            end;
+
+            if (MinManStr <> '') or (TimeStr <> '') or (TimeFinish <> '') then
+            begin
+              WriteLog('Error Row ' + IntToStr(Row) +' : Contain both Man and Unman data');
+              LogRowToCSV(Row, 'Contain both Man and Unman data');
               num := num + 1; // Skip to the next iteration of the loop
             end;
         end;
-
 
         // Machine Unman
        if (TimeStrMach <> '') and (TimeFinishMach <> '') and (DateMach <> '') AND (TimeStr = '') and (TimeFinish = '')  then
@@ -1606,8 +1692,8 @@ begin
           on E: Exception do
           begin
             // Handle exceptions such as connectivity issues, SQL syntax errors, etc.
-            UpdateErrorColumn(Row, 'Check JhMin is valid');
-            LogErrorRowToCSV(Row, 'Check JhMin is valid');
+            UpdateErrorColumn(Row, 'Check JhMin is invalid');
+            LogErrorRowToCSV(Row, 'Check JhMin is invalid');
             UpdateResultColumn(Row, 'NG');
             Continue; // Skip to the next iteration of the loop
           end;
@@ -1873,8 +1959,8 @@ begin
         end;
 
         try  //insert into history actual database_tkoito
-                File_Name := StringGridCSV.Cells[27, Row];
-                Result_Detail := StringGridCSV.Cells[28, Row];
+                File_Name := StringGridCSV.Cells[28, Row];
+                Result_Detail := StringGridCSV.Cells[29, Row];
         //insert into history actual database_tkoito
         SQL := 'INSERT INTO HISTORY_IMPORT_ACTUAL (Transaction_Date ,Import_Result ,Start_Date ,Worker_Name ,Employee_Code , '
             + 'Code_A ,Code_B ,Code_D ,Cost_Process_Name ,Modify_Job_No ,Mold_Code ,Model_info ,Lamp_Name ,Part_Name ,Part_Code ,Part_master , '
@@ -1965,6 +2051,16 @@ begin
     // Commit the transaction
     UniConnection.Commit;
   finally
+      for i := 1 to StringGridCSV.RowCount - 1 do
+          begin
+            if StringGridCSV.Cells[0, i] = 'Imported' then
+              Inc(OKCount)
+            else if StringGridCSV.Cells[0, i] = 'NG' then
+              Inc(NGCount);
+          end;
+
+          // Display the counts in the labels
+    LabelOK.Caption := 'Imported: ' + IntToStr(OKCount) +' NG: ' + IntToStr(NGCount);
     InsertQuery.Free;
     Managefile;
     ProgressBar1.Position := 0; // Reset the progress bar
@@ -2167,6 +2263,7 @@ begin
   else
   begin
     // Nothing to do!!
+    WriteLog('LogErrorRowToCSV');
   end;
 
 end;

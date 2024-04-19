@@ -52,7 +52,7 @@ object Form1: TForm1
   end
   object LabelPath: TLabel
     Left = 322
-    Top = 19
+    Top = 20
     Width = 33
     Height = 15
     Caption = 'Path : '
@@ -68,9 +68,21 @@ object Form1: TForm1
     Layout = blGlyphTop
     OnClick = SpeedButton3Click
   end
+  object LabelOK: TLabel
+    Left = 487
+    Top = 41
+    Width = 3
+    Height = 15
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -12
+    Font.Name = 'Segoe UI'
+    Font.Style = []
+    ParentFont = False
+  end
   object EditFolderPath: TEdit
     Left = 361
-    Top = 16
+    Top = 12
     Width = 377
     Height = 23
     Enabled = False
