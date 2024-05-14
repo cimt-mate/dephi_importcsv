@@ -720,7 +720,7 @@ begin
         end
         else
          begin
-           StringGridCSV.Cells[filename, Row] := FileNameStr;
+           //
 
         end;
 
@@ -2625,8 +2625,8 @@ procedure TForm1.LoadCSVFilesIntoGrid(const FolderPath: string);
 var
   Files: TStringDynArray;
   CSVLines: TStringList;
-  FilePath, Line, filename: string;
-  Row, Col, MaxCol: Integer;
+  FilePath, Line, FileName: string;
+  Row, Col, MaxCol, FilenameColIndex: Integer;
   CSVHeaderRead: Boolean;
 begin
   Files := TDirectory.GetFiles(FolderPath, '*.csv');
@@ -2638,42 +2638,40 @@ begin
     CSVLines := TStringList.Create;
     filename := ExtractFileName(FilePath);
     FileNameStr := filename;
-    // Extract the filename from the file path
+    ShowMessage(FileNameStr);
     try
       CSVLines.LoadFromFile(FilePath);
 
-      // Determine column count from header if it's not been set yet
       if not CSVHeaderRead then
       begin
-        var
-        HeaderCells := CSVLines[0].Split([',']);
-        MaxCol := Length(HeaderCells) + 2;
-        // Add 2 to the column count for the Result and Filename columns
-        StringGridCSV.ColCount := MaxCol;
-        StringGridCSV.RowCount := 1; // Start from row 1 to skip the title row
+        MaxCol := Length(CSVLines[0].Split([',']));
+        StringGridCSV.ColCount := MaxCol + 2; // Adding two for extra columns, one likely for 'Results' and one for 'Filename'
+        FilenameColIndex := StringGridCSV.ColCount - 1; // The last column index
+        StringGridCSV.RowCount := 1; // To skip the header row in the display
         CSVHeaderRead := True;
       end;
 
-      // Skip the header line in the CSV file
-      for Row := 2 to CSVLines.Count do
+      for Row := 1 to CSVLines.Count - 1 do
       begin
-        Line := CSVLines[Row - 1];
-        var
-        Cells := Line.Split([',']);
-        // Add a new row to the grid for each line read
+        Line := CSVLines[Row];
+        StringGridCSV.Cells[28, StringGridCSV.RowCount - 1] :=  FileNameStr ;
+        // Skip lines that consist only of commas
+        if Line.Replace(',', '').Trim = '' then
+          Continue;
 
         StringGridCSV.RowCount := StringGridCSV.RowCount + 1;
+        var Cells := Line.Split([',']);
 
-        // Fill the row with data, starting from column 1
+        // Populate the grid cells with CSV data
         for Col := 1 to High(Cells) + 1 do
-        begin
-          if Col < MaxCol - 1 then // Adjust for the filename column
-            StringGridCSV.Cells[Col, StringGridCSV.RowCount - 1] :=
-              Cells[Col - 1]; // Start filling from column 1
+          if Col <= MaxCol then
+          begin
+             StringGridCSV.Cells[Col, StringGridCSV.RowCount - 1] := Cells[Col - 1];
+        // Add filename to the last column, ensure you use the correct column inde
+          end;
 
-        end;
-        // Fill the last column with the filename
       end;
+
     finally
       CSVLines.Free;
     end;

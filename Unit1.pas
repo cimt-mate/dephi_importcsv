@@ -720,7 +720,7 @@ begin
         end
         else
          begin
-           StringGridCSV.Cells[filename, Row] := FileNameStr;
+           //
 
         end;
 
@@ -1367,7 +1367,6 @@ begin
         end
         else
          begin
-           StringGridCSV.Cells[filename, Row] := FileNameStr;
 
         end;
 
@@ -2638,6 +2637,7 @@ begin
     CSVLines := TStringList.Create;
     filename := ExtractFileName(FilePath);
     FileNameStr := filename;
+    ShowMessage(FileNameStr);
     try
       CSVLines.LoadFromFile(FilePath);
 
@@ -2665,6 +2665,7 @@ begin
           if Col <= MaxCol then
           begin
              StringGridCSV.Cells[Col, StringGridCSV.RowCount - 1] := Cells[Col - 1];
+             StringGridCSV.Cells[28, StringGridCSV.RowCount - 1] :=  FileNameStr ;
         // Add filename to the last column, ensure you use the correct column inde
           end;
 

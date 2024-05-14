@@ -97,7 +97,6 @@ type
     procedure ClearStringGrid(Grid: TStringGrid);
     function IsValidTimeFormat(TimeStr: string): Boolean;
     procedure LogErrorRowToCSV(Row: Integer; ErrorMessage: string);
-    procedure SetFilenameInGrid(const Row: Integer; const FileName: string);
   end;
 
 var
@@ -2622,66 +2621,62 @@ begin
   StringGridCSV.Anchors := [akLeft, akTop, akRight, akBottom];
 end;
 
-procedure TForm1.SetFilenameInGrid(const Row: Integer; const FileName: string);
-begin
-  StringGridCSV.Cells[StringGridCSV.ColCount - 1, Row] := FileName;
-end;
-
 procedure TForm1.LoadCSVFilesIntoGrid(const FolderPath: string);
 var
   Files: TStringDynArray;
   CSVLines: TStringList;
   FilePath, Line, FileName: string;
-  Row, Col, MaxCol: Integer;
+  Row, Col, MaxCol, FilenameColIndex: Integer;
   CSVHeaderRead: Boolean;
 begin
   Files := TDirectory.GetFiles(FolderPath, '*.csv');
-  CSVHeaderRead := False;
+  CSVHeaderRead := false;
   MaxCol := 0;
 
   for FilePath in Files do
   begin
     CSVLines := TStringList.Create;
-    FileName := ExtractFileName(FilePath);
+    filename := ExtractFileName(FilePath);
+    FileNameStr := filename;
+    ShowMessage(FileNameStr);
     try
       CSVLines.LoadFromFile(FilePath);
 
-      // Determine column count from header if it's not been set yet
       if not CSVHeaderRead then
       begin
-        var HeaderCells := CSVLines[0].Split([',']);
-        MaxCol := Length(HeaderCells) + 2;
-        // Add 2 to the column count for the Result and Filename columns
-        StringGridCSV.ColCount := MaxCol;
-        StringGridCSV.RowCount := 1; // Start from row 1 to skip the title row
+        MaxCol := Length(CSVLines[0].Split([',']));
+        StringGridCSV.ColCount := MaxCol + 2; // Adding two for extra columns, one likely for 'Results' and one for 'Filename'
+        FilenameColIndex := StringGridCSV.ColCount - 1; // The last column index
+        StringGridCSV.RowCount := 1; // To skip the header row in the display
         CSVHeaderRead := True;
       end;
 
-      // Skip the header line in the CSV file
-      for Row := 2 to CSVLines.Count do
+      for Row := 1 to CSVLines.Count - 1 do
       begin
-        Line := CSVLines[Row - 1];
-        var Cells := Line.Split([',']);
-        // Add a new row to the grid for each line read
+        Line := CSVLines[Row];
+        StringGridCSV.Cells[28, StringGridCSV.RowCount - 1] :=  FileNameStr ;
+        // Skip lines that consist only of commas
+        if Line.Replace(',', '').Trim = '' then
+          Continue;
+
         StringGridCSV.RowCount := StringGridCSV.RowCount + 1;
+        var Cells := Line.Split([',']);
 
-        // Fill the row with data, starting from column 1
+        // Populate the grid cells with CSV data
         for Col := 1 to High(Cells) + 1 do
-        begin
-          if Col < MaxCol - 1 then // Adjust for the filename column
-            StringGridCSV.Cells[Col, StringGridCSV.RowCount - 1] := Cells[Col - 1]; // Start filling from column 1
-            SetFilenameInGrid(StringGridCSV.RowCount - 1, FileName);
-        end;
-
-        // Set the filename in the grid
+          if Col <= MaxCol then
+          begin
+             StringGridCSV.Cells[Col, StringGridCSV.RowCount - 1] := Cells[Col - 1];
+        // Add filename to the last column, ensure you use the correct column inde
+          end;
 
       end;
+
     finally
       CSVLines.Free;
     end;
   end;
 end;
-
 
 function TForm1.GetColumnIndexByHeaderName(StringGrid: TStringGrid;
   HeaderName: string): Integer;

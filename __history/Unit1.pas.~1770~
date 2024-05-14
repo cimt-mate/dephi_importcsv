@@ -720,7 +720,7 @@ begin
         end
         else
          begin
-           StringGridCSV.Cells[filename, Row] := FileNameStr;
+           //
 
         end;
 
@@ -2636,24 +2636,19 @@ begin
   for FilePath in Files do
   begin
     CSVLines := TStringList.Create;
-    FileName := ExtractFileName(FilePath);
+    filename := ExtractFileName(FilePath);
+    FileNameStr := filename;
+    ShowMessage(FileNameStr);
     try
       CSVLines.LoadFromFile(FilePath);
 
       if not CSVHeaderRead then
       begin
         MaxCol := Length(CSVLines[0].Split([',']));
-        StringGridCSV.ColCount := MaxCol + 1; // Adding one for the 'Filename' column
+        StringGridCSV.ColCount := MaxCol + 2; // Adding two for extra columns, one likely for 'Results' and one for 'Filename'
         FilenameColIndex := StringGridCSV.ColCount - 1; // The last column index
         StringGridCSV.RowCount := 1; // To skip the header row in the display
         CSVHeaderRead := True;
-
-        // Populate header row
-        for Col := 0 to MaxCol - 1 do
-        begin
-          StringGridCSV.Cells[Col, 0] := CSVLines[0].Split([','])[Col];
-        end;
-        StringGridCSV.Cells[FilenameColIndex, 0] := 'Filename'; // Header for the 'Filename' column
       end;
 
       for Row := 1 to CSVLines.Count - 1 do
@@ -2667,16 +2662,14 @@ begin
         var Cells := Line.Split([',']);
 
         // Populate the grid cells with CSV data
-        for Col := 0 to MaxCol - 1 do
-        begin
-          if Col < Length(Cells) then
-            StringGridCSV.Cells[Col, StringGridCSV.RowCount - 1] := Cells[Col]
-          else
-            StringGridCSV.Cells[Col, StringGridCSV.RowCount - 1] := '';
-        end;
+        for Col := 1 to High(Cells) + 1 do
+          if Col <= MaxCol then
+          begin
+             StringGridCSV.Cells[Col, StringGridCSV.RowCount - 1] := Cells[Col - 1];
+                     StringGridCSV.Cells[28, StringGridCSV.RowCount - 1] :=  FileNameStr ;
+        // Add filename to the last column, ensure you use the correct column inde
+          end;
 
-        // Add filename to the last column
-        StringGridCSV.Cells[FilenameColIndex, StringGridCSV.RowCount - 1] := FileName;
       end;
 
     finally
@@ -2684,7 +2677,6 @@ begin
     end;
   end;
 end;
-
 
 function TForm1.GetColumnIndexByHeaderName(StringGrid: TStringGrid;
   HeaderName: string): Integer;
