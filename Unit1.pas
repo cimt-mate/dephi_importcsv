@@ -95,6 +95,7 @@ type
     function MinFloat(const A, B: Double): Double;
     procedure UpdateErrorColumn(Row: Integer; ErrorMessage: string);
     procedure ClearStringGrid(Grid: TStringGrid);
+    function RoundDownTo(Value: Double; Decimals: Integer): Double;
     function IsValidTimeFormat(TimeStr: string): Boolean;
     procedure LogErrorRowToCSV(Row: Integer; ErrorMessage: string);
   end;
@@ -658,6 +659,7 @@ var
   DateStr,Part_Name,Part_Master,Mold_Code,Model_info,Lamp_Name,MinManStr : string;
   TimeStr, TimeFinish, TimeStrMach, TimeFinishMach, DateMach , MinMachStr: string;
   num: Integer;
+  FormattedKinsumValue: String;
    FormatSettings: TFormatSettings;
 begin
   // Load the database connection parameters
@@ -1140,6 +1142,13 @@ begin
         if Length(Jisekibikou) > 40 then
           Jisekibikou := Copy(Jisekibikou, 1, 40);
 
+        if Pos('"', Jisekibikou) > 0 then
+        begin
+              UpdateErrorColumn(Row, 'Remark error " character ');
+              UpdateResultColumn(Row, 'NG');
+              num := num + 1;
+        end;
+
         // Prepare data for insertion
         Tourokuymd := Now;
 
@@ -1229,9 +1238,15 @@ begin
         GHIMOKUCDValue := InsertQuery.FieldByName('GHIMOKUCD').AsInteger;
         InsertQuery.Close;
         // Calculate YujinkinValue, MujinkinValue, and KinsumValue
+
         YujinkinValue := MinMan * YujintankaValue / 60;
         MujinkinValue := MinMach * KikaitankaValue / 60;
         KinsumValue := YujinkinValue + MujinkinValue;
+        KinsumValue := RoundDownTo(KinsumValue, 2);
+
+        // Format KinsumValue to 2 decimal places
+        FormattedKinsumValue := FormatFloat('0.00', KinsumValue);
+        KinsumValue := StrToFloat(FormattedKinsumValue);
 
         // GET PRIMARY KEY
         // Get the maximum JDSEQNO from the JISEKIDATA table
@@ -1303,6 +1318,7 @@ var
   DateStr,Import_Result,MinManStr,MinMachStr: string;
   TimeStr, TimeFinish, TimeStrMach, TimeFinishMach, DateMach: string;
   Code_A,Code_B,CostProcess_Name,Code_C,File_Name,Result_Detail,textError :string;
+  FormattedKinsumValue: String;
   FormatSettings: TFormatSettings;
 begin
   // Load the database connection parameters
@@ -1857,6 +1873,14 @@ begin
         if Length(Jisekibikou) > 40 then
           Jisekibikou := Copy(Jisekibikou, 1, 40);
 
+        if Pos('"', Jisekibikou) > 0 then
+        begin
+            UpdateErrorColumn(Row, 'Remark error " character ');
+            textError := textError +','+( 'Remark error " character ');
+            UpdateResultColumn(Row, 'NG');
+            Continue; // Skip to the next iteration of the loop
+        end;
+
         // Prepare data for insertion
         Tourokuymd := Now;
 
@@ -1961,6 +1985,11 @@ begin
               YujinkinValue := MinMan * YujintankaValue / 60;
               MujinkinValue := MinMach * KikaitankaValue / 60;
               KinsumValue := YujinkinValue + MujinkinValue;
+              KinsumValue := RoundDownTo(KinsumValue, 2);
+
+              // Format KinsumValue to 2 decimal places
+              FormattedKinsumValue := FormatFloat('0.00', KinsumValue);
+              KinsumValue := StrToFloat(FormattedKinsumValue);
 
               // GET PRIMARY KEY
               // Get the maximum JDSEQNO from the JISEKIDATA table
@@ -2417,34 +2446,33 @@ begin
       EndTime := EndTime + 24 * 60;
     end;
 
-    // Define break times based on the shift (in minutes)
-    if Shift = 'D' then
-    begin
-      BreakTimes[0] := 12 * 60 + 10;
-      BreakTimes[1] := 13 * 60 + 10;
-      BreakTimes[2] := 17 * 60;
-      BreakTimes[3] := 17 * 60 + 30;
-      BreakTimes[4] := 21 * 60 + 10;
-      BreakTimes[5] := 21 * 60 + 30;
-      BreakTimes[6] := 25 * 60 + 30; // Next day
-      BreakTimes[7] := 25 * 60 + 50; // Next day
-      BreakTimes[8] := 29 * 60 + 50; // Next day
-      BreakTimes[9] := 30 * 60 + 10; // Next day
-    end
-    else // Night shift
-    begin
-      BreakTimes[0] := 0;
-      BreakTimes[1] := 1 * 60;
-      BreakTimes[2] := 5 * 60;
-      BreakTimes[3] := 5 * 60 + 20;
-      BreakTimes[4] := 9 * 60;
-      BreakTimes[5] := 9 * 60 + 20;
-      BreakTimes[6] := 13 * 60 + 20;
-      BreakTimes[7] := 13 * 60 + 40;
-      BreakTimes[8] := 17 * 60 + 40;
-      BreakTimes[9] := 18 * 60;
-    end;
 
+       if Shift = 'N' then // Night shift
+    begin
+      BreakTimes[0] := 24 * 60;        // 00:00 next day
+      BreakTimes[1] := 25 * 60;        // 01:00 next day
+      BreakTimes[2] := 29 * 60;        // 05:00 next day
+      BreakTimes[3] := 29 * 60 + 20;   // 05:20 next day
+      BreakTimes[4] := 33 * 60;        // 09:00 next day
+      BreakTimes[5] := 33 * 60 + 20;   // 09:20 next day
+      BreakTimes[6] := 37 * 60 + 20;   // 13:20 next day
+      BreakTimes[7] := 37 * 60 + 40;   // 13:40 next day
+      BreakTimes[8] := 41 * 60 + 40;   // 17:40 next day
+      BreakTimes[9] := 42 * 60;        // 18:00 next day
+    end
+    else if Shift = 'D' then // Day shift
+    begin
+      BreakTimes[0] := 12 * 60 + 10;   // 12:10
+      BreakTimes[1] := 13 * 60 + 10;   // 13:10
+      BreakTimes[2] := 17 * 60;        // 17:00
+      BreakTimes[3] := 17 * 60 + 30;   // 17:30
+      BreakTimes[4] := 21 * 60 + 10;   // 21:10
+      BreakTimes[5] := 21 * 60 + 30;   // 21:30
+      BreakTimes[6] := 25 * 60 + 30;   // 01:30 next day
+      BreakTimes[7] := 25 * 60 + 50;   // 01:50 next day
+      BreakTimes[8] := 29 * 60 + 50;   // 05:50 next day
+      BreakTimes[9] := 30 * 60 + 10;   // 06:10 next day
+    end;
     // Calculate the working time excluding breaks
     WorkingTime := EndTime - StartTime;
 
@@ -2470,6 +2498,7 @@ begin
     // Convert working time to minutes
     TotalMinutes := Round(WorkingTime);
     Result := FloatToStr(TotalMinutes);
+
   except
     on E: Exception do
     begin
@@ -2637,7 +2666,6 @@ begin
     CSVLines := TStringList.Create;
     filename := ExtractFileName(FilePath);
     FileNameStr := filename;
-    ShowMessage(FileNameStr);
     try
       CSVLines.LoadFromFile(FilePath);
 
@@ -2810,6 +2838,14 @@ begin
     DrawText(Grid.Canvas.Handle, PChar(S), Length(S), Rect,
       DT_LEFT or DT_VCENTER or DT_SINGLELINE);
   end;
+end;
+
+function TForm1.RoundDownTo(Value: Double; Decimals: Integer): Double;
+var
+  Factor: Double;
+begin
+  Factor := Power(10, Decimals);
+  Result := Int(Value * Factor) / Factor;
 end;
 
 procedure TForm1.CreateStringGrid(var Grid: TStringGrid; AParent: TWinControl);
