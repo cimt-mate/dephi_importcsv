@@ -1240,7 +1240,9 @@ begin
         // Calculate YujinkinValue, MujinkinValue, and KinsumValue
 
         YujinkinValue := MinMan * YujintankaValue / 60;
+        YujinkinValue := RoundDownTo(YujinkinValue, 2);
         MujinkinValue := MinMach * KikaitankaValue / 60;
+        MujinkinValue := RoundDownTo(MujinkinValue, 2);
         KinsumValue := YujinkinValue + MujinkinValue;
         KinsumValue := RoundDownTo(KinsumValue, 2);
 
@@ -1983,7 +1985,9 @@ begin
               InsertQuery.Close;
               // Calculate YujinkinValue, MujinkinValue, and KinsumValue
               YujinkinValue := MinMan * YujintankaValue / 60;
+              YujinkinValue := RoundDownTo(YujinkinValue, 2);
               MujinkinValue := MinMach * KikaitankaValue / 60;
+              MujinkinValue := RoundDownTo(MujinkinValue, 2);
               KinsumValue := YujinkinValue + MujinkinValue;
               KinsumValue := RoundDownTo(KinsumValue, 2);
 
