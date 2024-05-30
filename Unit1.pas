@@ -1610,10 +1610,21 @@ begin
             if (InsertQuery.FieldByName('Count').AsInteger <= 0) then
             begin
               WriteLog('Error Row ' + IntToStr(Row) + ' : PartCode is Invalid');
-
-              textError := textError +','+( 'PartCode is Invalid.');
+              textError := textError + ',' + ('PartCode is Invalid.');
               num := num + 1; // Skip to the next iteration of the loop
+            end
+            else
+            begin
+              InsertQuery.SQL.Text := 'SELECT bunm FROM BUHINMST WHERE bucd = :BucdValue';
+              InsertQuery.ParamByName('BucdValue').AsString := BucdValue;
+              InsertQuery.Open;
+              if not InsertQuery.EOF then
+              begin
+                BunmValue := InsertQuery.FieldByName('bunm').AsString;
+                // Use BunmValue as needed in your code
+              end;
             end;
+            InsertQuery.Close;
           end;
         except
           on E: Exception do
@@ -2114,7 +2125,7 @@ begin
           InsertQuery.ParamByName('Mold_Code').AsString := Mold_Code;
           InsertQuery.ParamByName('Model_info').AsString := Model_info;
           InsertQuery.ParamByName('Lamp_Name').AsString := Lamp_Name;
-          InsertQuery.ParamByName('Part_Name').AsString := Part_Name;
+          InsertQuery.ParamByName('Part_Name').AsString := BunmValue;
           InsertQuery.ParamByName('Part_Code').AsString := BucdValue;
           InsertQuery.ParamByName('Part_Master').AsString := Part_Master;
           InsertQuery.ParamByName('Code_C').AsString := Code_C;
